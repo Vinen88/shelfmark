@@ -492,6 +492,15 @@ def _queue_prepared_download_submission(
         msg = "Requesting user not found"
         raise RequestServiceError(msg, status_code=404)
 
+    from shelfmark.core.edition_handoff import bind_request_locator
+
+    try:
+        release_data = bind_request_locator(create_args.get("book_data"), release_data)
+    except ValueError as exc:
+        raise RequestServiceError(
+            str(exc), status_code=400, code="edition_context_invalid"
+        ) from exc
+
     success, error = queue_release(
         dict(release_data),
         0,

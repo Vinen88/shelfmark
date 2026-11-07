@@ -28,6 +28,9 @@ export interface MetadataBookData {
     icon?: string;
   }>;
   // Series info
+  edition_work_id?: string;
+  edition_work_title?: string;
+  edition_series_name?: string;
   series_id?: string;
   series_name?: string;
   series_position?: number;
@@ -94,6 +97,9 @@ export function transformMetadataToBook(data: MetadataBookData): Book {
     genres: data.genres,
     source_url: data.source_url,
     display_fields: data.display_fields,
+    edition_work_id: data.edition_work_id,
+    edition_work_title: data.edition_work_title,
+    edition_series_name: data.edition_series_name,
     series_id: data.series_id,
     series_name: data.series_name,
     series_position: data.series_position,

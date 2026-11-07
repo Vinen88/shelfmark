@@ -153,6 +153,10 @@ def match_entries(book: BookMetadata, entries: list[LibraryEntry]) -> str | None
     omnibus. The reader has the book, but saying so plainly would misdescribe what is
     on the shelf.
     """
+    if book.provider == "edition_metadata":
+        from shelfmark.core.edition_ownership import match_edition_entries
+
+        return match_edition_entries(book, entries)
     if not entries:
         return None
 

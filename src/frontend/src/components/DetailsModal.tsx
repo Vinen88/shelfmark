@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
 
 import { useBodyScrollLock } from '../hooks/useBodyScrollLock';
@@ -7,8 +7,10 @@ import { useMountEffect } from '../hooks/useMountEffect';
 import type { Book, ButtonStateInfo } from '../types';
 import { isMetadataBook } from '../types';
 import { bookSupportsTargets } from '../utils/bookTargetLoader';
+import { editionDetailFields } from '../utils/editionPresentation';
 import { isUserCancelledError } from '../utils/errors';
 import { BookTargetDropdown } from './BookTargetDropdown';
+import { MetadataAttribution } from './MetadataAttribution';
 import { LibraryBadge, isInLibrary } from './shared';
 
 interface DetailsModalProps {
@@ -49,10 +51,14 @@ export const DetailsModal = ({
 }: DetailsModalProps) => {
   const [isQueuing, setIsQueuing] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
+  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useMountEffect(() => () => {
+    if (closeTimer.current !== null) clearTimeout(closeTimer.current);
+  });
 
   const handleClose = useCallback(() => {
     setIsClosing(true);
-    setTimeout(() => {
+    closeTimer.current = setTimeout(() => {
       onClose();
       setIsClosing(false);
     }, 150);
@@ -107,6 +113,12 @@ export const DetailsModal = ({
   const metadata = isMetadata
     ? [
         { label: 'Year', value: book.year || '-' },
+        ...(book.provider === 'edition_metadata'
+          ? [
+              { label: 'Publisher', value: book.publisher || '-' },
+              { label: 'Language', value: book.language || '-' },
+            ]
+          : []),
         ...(book.genres && book.genres.length > 0
           ? [{ label: 'Genres', value: book.genres.slice(0, 3).join(', ') }]
           : []),
@@ -126,7 +138,7 @@ export const DetailsModal = ({
   const readersField = isMetadata && book.display_fields?.find((f) => f.icon === 'users');
   // Other display fields (pages, editions, etc.) shown inline
   const otherDisplayFields =
-    isMetadata && book.display_fields?.filter((f) => f.icon !== 'star' && f.icon !== 'users');
+    isMetadata && editionDetailFields(book).filter((f) => f.icon !== 'star' && f.icon !== 'users');
 
   // Use provider display name from backend, fall back to capitalized provider name
   const providerDisplay =
@@ -146,9 +158,10 @@ export const DetailsModal = ({
       : [];
   const extendedInfoEntries = [[publisherInfo.label, publisherInfo.value], ...additionalInfo];
   const infoCardClass =
-    'rounded-2xl border border-(--border-muted) px-4 py-3 text-sm bg-(--bg-soft) sm:bg-(--bg)';
+    'min-w-0 rounded-2xl border border-(--border-muted) px-4 py-3 text-sm bg-(--bg-soft) sm:bg-(--bg)';
   const infoLabelClass = 'text-[11px] uppercase tracking-wide text-gray-500 dark:text-gray-400';
-  const infoValueClass = 'text-gray-900 dark:text-gray-100';
+  const infoValueClass =
+    'min-w-0 whitespace-pre-wrap [overflow-wrap:anywhere] text-gray-900 dark:text-gray-100';
 
   const modal = (
     <div className="modal-overlay active sm:px-6 sm:py-6">
@@ -170,7 +183,7 @@ export const DetailsModal = ({
       >
         <div className="flex h-full flex-col overflow-hidden rounded-none border-0 border-(--border-muted) bg-(--bg) text-(--text) shadow-none sm:h-[90vh] sm:max-h-[90vh] sm:rounded-2xl sm:border sm:bg-(--bg-soft) sm:shadow-2xl">
           <header className="flex items-start gap-4 border-b border-(--border-muted) bg-(--bg) px-5 py-4 sm:bg-(--bg-soft)">
-            <div className="flex-1 space-y-1">
+            <div className="min-w-0 flex-1 space-y-1 [overflow-wrap:anywhere]">
               <p className="text-xs tracking-wide text-gray-500 uppercase dark:text-gray-400">
                 Book
               </p>
@@ -224,7 +237,7 @@ export const DetailsModal = ({
                 )}
               </div>
 
-              <div className="flex flex-1 flex-col gap-4 sm:gap-5 lg:min-h-0">
+              <div className="flex min-w-0 flex-1 flex-col gap-4 sm:gap-5 lg:min-h-0">
                 {book.description && (
                   <div className={`${infoCardClass} space-y-1`}>
                     <p className={infoLabelClass}>Description</p>
@@ -380,6 +393,7 @@ export const DetailsModal = ({
           </div>
 
           <footer className="border-t border-(--border-muted) bg-(--bg) px-5 py-4 sm:bg-(--bg-soft)">
+            <MetadataAttribution books={[book]} />
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               {/* Source link - shown for both Universal and Direct Download modes */}
               {showBookSourceLink && (

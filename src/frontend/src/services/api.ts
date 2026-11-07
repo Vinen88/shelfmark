@@ -348,6 +348,7 @@ export const searchMetadata = async (
   page: number = 1,
   contentType: string = 'ebook',
   provider?: string,
+  languages?: string[],
 ): Promise<MetadataSearchResult> => {
   const hasFields = Object.values(fields).some((v) => v !== '' && v !== false);
 
@@ -363,6 +364,7 @@ export const searchMetadata = async (
   params.set('sort', sort);
   params.set('page', String(page));
   params.set('content_type', contentType);
+  if (languages?.length) params.set('language', languages.join(','));
   if (provider) {
     params.set('provider', provider);
   }
@@ -537,7 +539,15 @@ export const getMetadataBookInfo = async (provider: string, bookId: string): Pro
 };
 
 // Download a specific release (from ReleaseModal)
+export type EditionLocator = Readonly<{
+  version: 1;
+  provider: string;
+  provider_id: string;
+}>;
+
 export type DownloadReleasePayload = {
+  edition_context?: EditionLocator;
+  release_title?: string; // Advisory source title; never an edition identifier.
   source: string;
   source_id: string;
   title: string;

@@ -1,4 +1,5 @@
 import type { Book, ContentType, CreateRequestPayload, Release } from '../types';
+import { selectedEditionContext } from './releasePayload';
 
 export const toContentType = (value: string): ContentType => {
   return value.trim().toLowerCase() === 'audiobook' ? 'audiobook' : 'ebook';
@@ -65,6 +66,7 @@ export const buildReleaseDataFromMetadataRelease = (
   release: Release,
   contentType: ContentType,
 ) => {
+  const editionContext = selectedEditionContext(book, contentType);
   const isSourceBackedReleaseContext =
     Boolean(book.provider) &&
     book.provider === release.source &&
@@ -73,6 +75,7 @@ export const buildReleaseDataFromMetadataRelease = (
   return {
     source: release.source,
     source_id: release.source_id,
+    ...(editionContext ? { edition_context: editionContext, release_title: release.title } : {}),
     title: book.title || release.title || 'Unknown title',
     author: book.author,
     year: book.year,

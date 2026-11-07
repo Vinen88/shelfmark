@@ -1,5 +1,24 @@
 # 📚 Shelfmark: Book Search & Request Tool
 
+This private fork includes native audiobook edition metadata, exact recording Get
+handoff, recording ownership, ABS metadata publication and automatic scan notification.
+Libex, AudiobookDB and Audnexus retain their existing source opt-ins and authorization.
+The frontend supports grouped recordings, series navigation and language filtering.
+
+From this directory, run `python scripts/manage.py deploy` on Windows or
+`python3 scripts/manage.py deploy` on Linux (host Python 3.10+). It builds with the
+upstream Dockerfile and startup, checks the candidate in isolation, and automatically
+recovers to verified official Shelfmark if deployment fails. `fallback` and `status`
+are available through the same command. Exit 0 means native success or healthy status, 2 means healthy
+official recovery, and 1 means failure. The root Compose defaults to scratch storage,
+`shelfmark-fork-lab` and `127.0.0.1:18084`. Keep paths/credentials private in `.env`.
+No extension directory, loader, patches or code mounts are required.
+
+Read [native migration and recovery](docs/NATIVE_MIGRATION.md) before using existing
+configuration or media. Production migration has **not** been executed. The working
+`../extension/` installation remains the rollback target. [Validation and code-size
+measurements](docs/NATIVE_VALIDATION.md) describe the synthetic acceptance results.
+
 <img src="src/frontend/public/logo.png" alt="Shelfmark" width="200">
 
 > [!NOTE]

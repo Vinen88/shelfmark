@@ -1,5 +1,14 @@
-import type { DownloadReleasePayload } from '../services/api';
+import type { DownloadReleasePayload, EditionLocator } from '../services/api';
 import type { Book, ContentType, PackBook, Release } from '../types';
+
+export const selectedEditionContext = (
+  book: Book,
+  contentType: ContentType,
+): EditionLocator | undefined => {
+  if (contentType !== 'audiobook' || book.provider !== 'edition_metadata') return undefined;
+  if (!book.provider_id?.trim()) throw new Error('Selected audiobook edition has no metadata ID');
+  return { version: 1, provider: book.provider, provider_id: book.provider_id };
+};
 
 export interface ReleaseDownloadOptions {
   /** Ask post-processing to split the release into one book per subfolder/file. */
@@ -34,6 +43,7 @@ export function buildReleaseDownloadPayload(
   releaseContentType: ContentType,
   options: ReleaseDownloadOptions = {},
 ): DownloadReleasePayload {
+  const editionContext = selectedEditionContext(book, releaseContentType);
   const isManual = book.provider === 'manual';
   const releasePreview =
     typeof release.extra?.preview === 'string' ? release.extra.preview : undefined;
@@ -43,6 +53,7 @@ export function buildReleaseDownloadPayload(
   const payload: DownloadReleasePayload = {
     source: release.source,
     source_id: release.source_id,
+    ...(editionContext ? { edition_context: editionContext, release_title: release.title } : {}),
     title: isManual ? release.title : book.title,
     author: isManual ? releaseAuthor || '' : book.author,
     year: book.year,

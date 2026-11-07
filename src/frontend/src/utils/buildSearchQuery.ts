@@ -25,7 +25,14 @@ export const buildSearchQuery = ({
     queryParts.push(`query=${encodeURIComponent(basic)}`);
   }
 
-  // In universal mode, only include query and sort
+  const selectedLanguages = getLanguageFilterValues(
+    advancedFilters.lang,
+    bookLanguages,
+    defaultLanguage,
+  );
+  selectedLanguages?.forEach((code) => queryParts.push(`lang=${encodeURIComponent(code)}`));
+
+  // Universal mode shares the native language preference with direct searches.
   // Provider-specific fields are handled separately via searchFieldValues
   if (searchMode === 'universal') {
     if (advancedFilters.sort) {
@@ -35,14 +42,11 @@ export const buildSearchQuery = ({
   }
 
   // Direct mode: include the active direct search settings regardless of panel visibility.
-  const { isbn, author, title, content, formats, lang } = advancedFilters;
+  const { isbn, author, title, content, formats } = advancedFilters;
 
   if (isbn) queryParts.push(`isbn=${encodeURIComponent(isbn)}`);
   if (author) queryParts.push(`author=${encodeURIComponent(author)}`);
   if (title) queryParts.push(`title=${encodeURIComponent(title)}`);
-
-  const selectedLanguages = getLanguageFilterValues(lang, bookLanguages, defaultLanguage);
-  selectedLanguages?.forEach((code) => queryParts.push(`lang=${encodeURIComponent(code)}`));
 
   if (content) queryParts.push(`content=${encodeURIComponent(content)}`);
   formats.forEach((format) => queryParts.push(`format=${encodeURIComponent(format)}`));

@@ -4,6 +4,7 @@ import { useSearchMode } from '../../contexts/SearchModeContext';
 import type { Book, ButtonStateInfo } from '../../types';
 import { getDownloadsCount } from '../../types';
 import { bookSupportsTargets } from '../../utils/bookTargetLoader';
+import { cardDisplayFields } from '../../utils/editionPresentation';
 import { BookActionButton } from '../BookActionButton';
 import { BookTargetDropdown } from '../BookTargetDropdown';
 import { DisplayFieldBadges, DisplayFieldIcon, LibraryBadge } from '../shared';
@@ -44,7 +45,7 @@ export const CompactView = ({
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const targetProvider = book.provider;
   const targetBookId = book.provider_id;
-  const microphoneField = book.display_fields?.find((field) => field.icon === 'microphone');
+  const microphoneField = cardDisplayFields(book).find((field) => field.icon === 'microphone');
   let zIndex: number | undefined;
   if (dropdownOpen) {
     zIndex = 20;
@@ -73,7 +74,7 @@ export const CompactView = ({
   return (
     // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- mouse handlers drive a decorative hover shadow only; no interactive behavior requiring keyboard support
     <article
-      className="book-card animate-pop-up relative flex! h-[180px]! w-full flex-row! transition-shadow duration-300"
+      className="book-card animate-pop-up relative flex! min-h-[180px] w-full min-w-0 flex-row! transition-shadow duration-300"
       style={{
         background: 'var(--bg-soft)',
         borderRadius: '.75rem',
@@ -85,7 +86,7 @@ export const CompactView = ({
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      <div className="relative h-full w-[120px] shrink-0">
+      <div className="relative w-[96px] shrink-0 self-stretch sm:w-[120px]">
         <div className="absolute inset-0 overflow-hidden rounded-l-[.75rem]">
           {/* Series position badge */}
           {showSeriesPosition && book.series_position != null && (
@@ -200,7 +201,7 @@ export const CompactView = ({
           {searchMode === 'universal' && book.display_fields && book.display_fields.length > 0 ? (
             <>
               <DisplayFieldBadges
-                fields={book.display_fields.filter(
+                fields={cardDisplayFields(book).filter(
                   (f) => f.icon !== 'editions' && f.icon !== 'microphone',
                 )}
                 className="text-xs opacity-70"

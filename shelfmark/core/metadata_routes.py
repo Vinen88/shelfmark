@@ -364,6 +364,7 @@ def register_metadata_routes(
                 page=page,
                 sort=sort_order,
                 fields=fields,
+                language=request.args.get("language"),
                 user_id=db_user_id,
             )
             search_result = provider.search_paginated(options)

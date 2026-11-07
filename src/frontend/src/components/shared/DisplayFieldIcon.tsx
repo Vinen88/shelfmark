@@ -113,11 +113,11 @@ const getKeyedDisplayFields = (fields: DisplayField[]) => {
 export function DisplayFieldBadge({ field, className = '' }: DisplayFieldBadgeProps) {
   return (
     <span
-      className={`flex items-center gap-0.5 text-xs text-gray-700 dark:text-gray-200 ${className}`}
+      className={`flex max-w-full min-w-0 items-center gap-0.5 text-xs text-gray-700 dark:text-gray-200 ${className}`}
       title={field.label}
     >
       <DisplayFieldIcon icon={field.icon} />
-      <span>{field.value}</span>
+      <span className="min-w-0 truncate">{field.value}</span>
     </span>
   );
 }

@@ -73,6 +73,8 @@ def _item_to_entry(item: dict[str, Any]) -> LibraryEntry:
     title_tok = set(tokens(title))
     tok = title_tok | context_tok | set(tokens(rel_path))
 
+    from shelfmark.core.edition_ownership import library_recording
+
     asin = str(meta.get("asin") or "").strip().upper()
     return LibraryEntry(
         frozenset(tok),
@@ -81,6 +83,7 @@ def _item_to_entry(item: dict[str, Any]) -> LibraryEntry:
         frozenset(),
         frozenset(title_tok),
         frozenset(context_tok),
+        _edition_recording=library_recording(item),
     )
 
 

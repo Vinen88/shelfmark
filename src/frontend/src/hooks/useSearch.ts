@@ -71,6 +71,7 @@ export function useSearch(options: UseSearchOptions): UseSearchReturn {
   const navigate = useNavigate();
 
   const [books, setBooks] = useState<Book[]>([]);
+  const searchRequest = useRef(0);
   const [isSearching, setIsSearching] = useState(false);
   const [lastSearchQuery, setLastSearchQuery] = useState('');
   const [searchInput, setSearchInput] = useState('');
@@ -106,6 +107,7 @@ export function useSearch(options: UseSearchOptions): UseSearchReturn {
     fieldValues: SearchFieldValues;
     providerOverride?: string;
     contentType: ContentType;
+    languages: string[];
   } | null>(null);
 
   const updateAdvancedFilters = useCallback((updates: Partial<AdvancedFilterState>) => {
@@ -193,6 +195,7 @@ export function useSearch(options: UseSearchOptions): UseSearchReturn {
     }) => {
       const effectiveContentType = contentTypeOverride ?? contentType;
       const searchMode = (searchModeOverride ?? config?.search_mode) || 'universal';
+      const request = ++searchRequest.current;
 
       // In universal mode, check if we have either a query or field values
       if (searchMode === 'universal') {
@@ -204,8 +207,12 @@ export function useSearch(options: UseSearchOptions): UseSearchReturn {
           (v) => v !== '' && v !== false,
         );
         const sortOrder = params.get('sort') || 'relevance';
+        // Other native metadata providers accept at most one language, or use their own defaults.
+        const languages = providerOverride === 'edition_metadata' ? params.getAll('lang') : [];
 
         if (!searchQuery && !hasFieldValues) {
+          setIsSearching(false);
+          setIsLoadingMore(false);
           setBooks([]);
           setLastSearchQuery('');
           setHasMore(false);
@@ -219,6 +226,9 @@ export function useSearch(options: UseSearchOptions): UseSearchReturn {
         }
 
         setIsSearching(true);
+        setBooks([]);
+        setIsLoadingMore(false);
+        lastSearchParamsRef.current = null;
         setLastSearchQuery(query);
         // Reset pagination for new search. directTotalResults belongs to direct mode
         // and is never written here, so without clearing it a count from an earlier
@@ -237,7 +247,9 @@ export function useSearch(options: UseSearchOptions): UseSearchReturn {
             1,
             effectiveContentType,
             providerOverride,
+            languages,
           );
+          if (request !== searchRequest.current) return;
           if (result.books.length > 0) {
             setBooks(result.books);
             setHasMore(result.hasMore);
@@ -255,6 +267,7 @@ export function useSearch(options: UseSearchOptions): UseSearchReturn {
               fieldValues: effectiveFieldValues,
               providerOverride,
               contentType: effectiveContentType,
+              languages,
             };
           } else {
             setBooks([]);
@@ -265,9 +278,9 @@ export function useSearch(options: UseSearchOptions): UseSearchReturn {
             showToast('No results found', 'error');
           }
         } catch (error) {
-          handleSearchError(error, 'Search failed');
+          if (request === searchRequest.current) handleSearchError(error, 'Search failed');
         } finally {
-          setIsSearching(false);
+          if (request === searchRequest.current) setIsSearching(false);
         }
         return;
       }
@@ -283,6 +296,7 @@ export function useSearch(options: UseSearchOptions): UseSearchReturn {
 
       try {
         const { books: results, totalResults } = await searchBooks(query);
+        if (request !== searchRequest.current) return;
 
         if (results.length > 0) {
           // When no explicit server-side sort is selected (empty or "downloads"),
@@ -298,6 +312,7 @@ export function useSearch(options: UseSearchOptions): UseSearchReturn {
           setDirectTotalResults(null);
         }
       } catch (error) {
+        if (request !== searchRequest.current) return;
         if (error instanceof AuthenticationError) {
           handleSearchError(error, 'Search failed');
         } else {
@@ -305,7 +320,7 @@ export function useSearch(options: UseSearchOptions): UseSearchReturn {
           showToast(describeSearchFailure(error), 'error');
         }
       } finally {
-        setIsSearching(false);
+        if (request === searchRequest.current) setIsSearching(false);
       }
     },
     [
@@ -320,6 +335,9 @@ export function useSearch(options: UseSearchOptions): UseSearchReturn {
 
   const handleResetSearch = useCallback(
     (config: AppConfig | null) => {
+      searchRequest.current += 1;
+      setIsSearching(false);
+      setIsLoadingMore(false);
       setBooks([]);
       setSearchInput('');
       setShowAdvanced(false);
@@ -367,7 +385,9 @@ export function useSearch(options: UseSearchOptions): UseSearchReturn {
         fieldValues,
         providerOverride,
         contentType: searchContentType,
+        languages,
       } = lastSearchParamsRef.current;
+      const request = searchRequest.current;
       const nextPage = currentPage + 1;
 
       setIsLoadingMore(true);
@@ -381,7 +401,9 @@ export function useSearch(options: UseSearchOptions): UseSearchReturn {
           nextPage,
           searchContentType,
           providerOverride,
+          languages,
         );
+        if (request !== searchRequest.current) return;
         if (result.books.length > 0) {
           setBooks((prev) => [...prev, ...result.books]);
           setHasMore(result.hasMore);
@@ -390,9 +412,10 @@ export function useSearch(options: UseSearchOptions): UseSearchReturn {
           setHasMore(false);
         }
       } catch (error) {
-        handleSearchError(error, 'Failed to load more results');
+        if (request === searchRequest.current)
+          handleSearchError(error, 'Failed to load more results');
       } finally {
-        setIsLoadingMore(false);
+        if (request === searchRequest.current) setIsLoadingMore(false);
       }
     },
     [currentPage, hasMore, isLoadingMore, handleSearchError],

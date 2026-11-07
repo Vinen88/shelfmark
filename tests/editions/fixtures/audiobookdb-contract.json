@@ -1,0 +1,1153 @@
+{
+  "_review": {
+    "url": "https://audiobookdb.org/openapi-public.json",
+    "reviewed": "2026-11-05",
+    "sha256": "3c3f680337c4fd5882d9d79c63924c908e6cc6acee553c43824a8597b9546a36",
+    "note": "Structural subset of public contract; no catalog records."
+  },
+  "info": {
+    "version": "2.0.0"
+  },
+  "paths": {
+    "/search": {
+      "post": {
+        "tags": [
+          "Search"
+        ],
+        "operationId": "search",
+        "x-endpoint-class": "search",
+        "x-csrf": true,
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/SearchType"
+            }
+          },
+          {
+            "name": "includeFields",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "q": {
+                    "type": "string"
+                  },
+                  "type": {
+                    "$ref": "#/components/schemas/SearchType"
+                  },
+                  "includeFields": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "filters": {
+                    "$ref": "#/components/schemas/SearchFilters"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SearchDocument"
+                  }
+                }
+              }
+            },
+            "headers": {
+              "RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimit-Limit"
+              },
+              "RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimit-Remaining"
+              },
+              "RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimit-Reset"
+              },
+              "X-RateLimit-Budget": {
+                "$ref": "#/components/headers/X-RateLimit-Budget"
+              },
+              "X-RateLimit-Period": {
+                "$ref": "#/components/headers/X-RateLimit-Period"
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        }
+      }
+    },
+    "/books/{id}": {
+      "get": {
+        "tags": [
+          "Books"
+        ],
+        "operationId": "getBook",
+        "x-endpoint-class": "detail",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdParam"
+          },
+          {
+            "$ref": "#/components/parameters/BookIncludeParam"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Book"
+                }
+              }
+            },
+            "headers": {
+              "RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimit-Limit"
+              },
+              "RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimit-Remaining"
+              },
+              "RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimit-Reset"
+              },
+              "X-RateLimit-Budget": {
+                "$ref": "#/components/headers/X-RateLimit-Budget"
+              },
+              "X-RateLimit-Period": {
+                "$ref": "#/components/headers/X-RateLimit-Period"
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        }
+      }
+    },
+    "/releases/{id}": {
+      "get": {
+        "tags": [
+          "Releases"
+        ],
+        "operationId": "getRelease",
+        "x-endpoint-class": "detail",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdParam"
+          },
+          {
+            "$ref": "#/components/parameters/ReleaseIncludeParam"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Release"
+                }
+              }
+            },
+            "headers": {
+              "RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimit-Limit"
+              },
+              "RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimit-Remaining"
+              },
+              "RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimit-Reset"
+              },
+              "X-RateLimit-Budget": {
+                "$ref": "#/components/headers/X-RateLimit-Budget"
+              },
+              "X-RateLimit-Period": {
+                "$ref": "#/components/headers/X-RateLimit-Period"
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        }
+      }
+    },
+    "/audiobooks/external/{category}/{itemId}": {
+      "get": {
+        "tags": [
+          "Audiobooks"
+        ],
+        "operationId": "getAudiobookByExternal",
+        "x-endpoint-class": "detail",
+        "parameters": [
+          {
+            "name": "category",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "itemId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalAudiobook"
+                }
+              }
+            },
+            "headers": {
+              "RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimit-Limit"
+              },
+              "RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimit-Remaining"
+              },
+              "RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimit-Reset"
+              },
+              "X-RateLimit-Budget": {
+                "$ref": "#/components/headers/X-RateLimit-Budget"
+              },
+              "X-RateLimit-Period": {
+                "$ref": "#/components/headers/X-RateLimit-Period"
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Book": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/Nanoid"
+          },
+          "title": {
+            "type": "string"
+          },
+          "copyright": {
+            "type": "integer",
+            "nullable": true
+          },
+          "descriptionSource": {
+            "type": "string",
+            "nullable": true
+          },
+          "disambiguation": {
+            "type": "string",
+            "nullable": true
+          },
+          "subtitle": {
+            "type": "string",
+            "nullable": true
+          },
+          "isAdult": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "links": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "type": {
+            "type": "string",
+            "nullable": true
+          },
+          "originallyPublishedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "external": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ExternalRelations"
+            }
+          },
+          "genres": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IdTitle"
+            }
+          },
+          "images": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ImageInput"
+            }
+          },
+          "originalLanguage": {
+            "type": "object",
+            "nullable": true,
+            "properties": {
+              "name": {
+                "type": "string"
+              }
+            }
+          },
+          "people": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PersonRoleRelation"
+            }
+          },
+          "releases": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BookReleaseRef"
+            }
+          },
+          "releaseCount": {
+            "type": "integer"
+          },
+          "series": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BookInSeries"
+            }
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IdTitle"
+            }
+          },
+          "coverImage": {
+            "nullable": true,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ImageInput"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "title"
+        ]
+      },
+      "Release": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/Nanoid"
+          },
+          "title": {
+            "type": "string"
+          },
+          "disambiguation": {
+            "type": "string",
+            "nullable": true
+          },
+          "subtitle": {
+            "type": "string",
+            "nullable": true
+          },
+          "duration": {
+            "type": "string"
+          },
+          "isbn": {
+            "type": "string",
+            "nullable": true
+          },
+          "releaseDate": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "runtimeLengthMs": {
+            "type": "integer"
+          },
+          "runtimeLengthSec": {
+            "type": "integer"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "book": {
+            "$ref": "#/components/schemas/IdTitle"
+          },
+          "chapterDetail": {
+            "type": "object",
+            "nullable": true,
+            "properties": {
+              "chapters": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "lengthMs": {
+                      "type": "integer"
+                    },
+                    "lengthString": {
+                      "type": "string"
+                    },
+                    "ordinal": {
+                      "type": "integer"
+                    },
+                    "startOffsetMs": {
+                      "type": "integer"
+                    },
+                    "title": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "external": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ExternalRelations"
+            }
+          },
+          "images": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ImageInput"
+            }
+          },
+          "language": {
+            "type": "object",
+            "nullable": true,
+            "properties": {
+              "name": {
+                "type": "string"
+              }
+            }
+          },
+          "people": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PersonRoleRelation"
+            }
+          },
+          "publisher": {
+            "$ref": "#/components/schemas/IdName"
+          }
+        },
+        "required": [
+          "id",
+          "title"
+        ]
+      },
+      "Nanoid": {
+        "type": "string",
+        "pattern": "^[346789ABCDEFGHJKLMNPQRTUVWXYabcdefghijkmnpqrtwxyz]{12}$"
+      },
+      "ExternalAudiobook": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Book"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "matchedReleaseId": {
+                "$ref": "#/components/schemas/Nanoid"
+              }
+            }
+          }
+        ]
+      },
+      "ExternalRelations": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/Nanoid"
+          },
+          "itemId": {
+            "type": "string",
+            "minLength": 3
+          },
+          "category": {
+            "$ref": "#/components/schemas/ExternalCategory"
+          }
+        },
+        "required": [
+          "id",
+          "itemId",
+          "category"
+        ]
+      },
+      "ExternalCategory": {
+        "type": "object",
+        "properties": {
+          "allowedOnBook": {
+            "type": "boolean",
+            "default": false
+          },
+          "allowedOnPerson": {
+            "type": "boolean",
+            "default": false
+          },
+          "allowedOnRelease": {
+            "type": "boolean",
+            "default": false
+          },
+          "allowedOnSeries": {
+            "type": "boolean",
+            "default": false
+          },
+          "allowedOnPublisher": {
+            "type": "boolean",
+            "default": false
+          },
+          "displayGroup": {
+            "type": "string",
+            "enum": [
+              "buy",
+              "listen",
+              "info",
+              "social"
+            ],
+            "nullable": true
+          },
+          "displayLabel": {
+            "type": "string",
+            "nullable": true
+          },
+          "icon": {
+            "type": "string",
+            "nullable": true
+          },
+          "image": {
+            "type": "string",
+            "format": "uri",
+            "nullable": true
+          },
+          "itemKind": {
+            "type": "string",
+            "enum": [
+              "link",
+              "id"
+            ],
+            "default": "link"
+          },
+          "regex": {
+            "type": "string",
+            "nullable": true
+          },
+          "suffixForBook": {
+            "type": "string",
+            "nullable": true
+          },
+          "suffixForPerson": {
+            "type": "string",
+            "nullable": true
+          },
+          "suffixForRelease": {
+            "type": "string",
+            "nullable": true
+          },
+          "suffixForSeries": {
+            "type": "string",
+            "nullable": true
+          },
+          "suffixForPublisher": {
+            "type": "string",
+            "nullable": true
+          },
+          "title": {
+            "type": "string",
+            "minLength": 3
+          },
+          "url": {
+            "type": "string",
+            "format": "uri"
+          }
+        },
+        "required": [
+          "title",
+          "url"
+        ]
+      },
+      "PersonRoleRelation": {
+        "type": "object",
+        "properties": {
+          "role": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "name"
+            ]
+          },
+          "person": {
+            "type": "object",
+            "nullable": true,
+            "properties": {
+              "id": {
+                "$ref": "#/components/schemas/Nanoid"
+              },
+              "name": {
+                "type": "string"
+              },
+              "genres": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/IdTitle"
+                }
+              },
+              "images": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/ImageInput"
+                }
+              },
+              "roles": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/PersonCreditRef"
+                }
+              }
+            },
+            "required": [
+              "id",
+              "name"
+            ]
+          },
+          "book": {
+            "type": "object",
+            "nullable": true,
+            "properties": {
+              "id": {
+                "$ref": "#/components/schemas/Nanoid"
+              },
+              "title": {
+                "type": "string"
+              },
+              "images": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/ImageInput"
+                }
+              },
+              "originallyPublishedAt": {
+                "type": "string",
+                "format": "date-time",
+                "nullable": true
+              }
+            }
+          },
+          "release": {
+            "type": "object",
+            "nullable": true,
+            "properties": {
+              "id": {
+                "$ref": "#/components/schemas/Nanoid"
+              },
+              "title": {
+                "type": "string"
+              },
+              "images": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/ImageInput"
+                }
+              },
+              "releaseDate": {
+                "type": "string",
+                "format": "date-time",
+                "nullable": true
+              }
+            }
+          }
+        },
+        "required": [
+          "role"
+        ]
+      },
+      "BookReleaseRef": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/Nanoid"
+          },
+          "title": {
+            "type": "string"
+          },
+          "releaseDate": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "duration": {
+            "type": "string"
+          },
+          "isbn": {
+            "type": "string"
+          },
+          "disambiguation": {
+            "type": "string",
+            "nullable": true
+          },
+          "images": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ImageInput"
+            }
+          },
+          "language": {
+            "$ref": "#/components/schemas/Name",
+            "nullable": true
+          },
+          "publisher": {
+            "$ref": "#/components/schemas/IdName",
+            "nullable": true
+          },
+          "people": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PersonRoleRelation"
+            },
+            "nullable": true
+          },
+          "external": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ExternalRelations"
+            },
+            "nullable": true
+          }
+        },
+        "required": [
+          "id",
+          "title"
+        ]
+      },
+      "BookInSeries": {
+        "type": "object",
+        "properties": {
+          "ordinal": {
+            "type": "string",
+            "nullable": true
+          },
+          "position": {
+            "$ref": "#/components/schemas/SeriesPosition"
+          },
+          "series": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "$ref": "#/components/schemas/Nanoid"
+              },
+              "title": {
+                "type": "string"
+              },
+              "images": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/ImageInput"
+                },
+                "nullable": true
+              },
+              "bookCount": {
+                "type": "integer",
+                "nullable": true
+              }
+            },
+            "required": [
+              "id",
+              "title"
+            ]
+          }
+        },
+        "required": [
+          "ordinal",
+          "position",
+          "series"
+        ]
+      },
+      "SearchType": {
+        "type": "string",
+        "enum": [
+          "books",
+          "genres",
+          "people",
+          "publishers",
+          "releases",
+          "series",
+          "tags"
+        ]
+      },
+      "SearchDocumentBook": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/Nanoid"
+          },
+          "collection": {
+            "type": "string"
+          },
+          "isDirectMatch": {
+            "type": "boolean"
+          },
+          "title": {
+            "type": "string"
+          },
+          "disambiguation": {
+            "type": "string"
+          },
+          "image": {
+            "$ref": "#/components/schemas/ImageInput"
+          },
+          "external": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "genres": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "isAdult": {
+            "type": "boolean"
+          },
+          "originallyPublishedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "originalLanguage": {
+            "type": "string"
+          },
+          "subtitle": {
+            "type": "string"
+          },
+          "people": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "role": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "person": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "$ref": "#/components/schemas/Nanoid"
+                    },
+                    "name": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "credit": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "series": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "seriesWithId": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "$ref": "#/components/schemas/Nanoid"
+                },
+                "ordinal": {
+                  "type": "string",
+                  "nullable": true
+                },
+                "position": {
+                  "$ref": "#/components/schemas/SeriesPosition"
+                },
+                "title": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "type": {
+            "type": "string"
+          }
+        }
+      },
+      "SearchDocumentRelease": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/Nanoid"
+          },
+          "collection": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "subtitle": {
+            "type": "string"
+          },
+          "disambiguation": {
+            "type": "string"
+          },
+          "image": {
+            "$ref": "#/components/schemas/ImageInput"
+          },
+          "book": {
+            "$ref": "#/components/schemas/IdTitle"
+          },
+          "external": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "duration": {
+            "type": "string"
+          },
+          "language": {
+            "type": "string"
+          },
+          "people": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "role": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "person": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "$ref": "#/components/schemas/Nanoid"
+                    },
+                    "name": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "credit": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "publisher": {
+            "$ref": "#/components/schemas/IdName"
+          },
+          "releaseDate": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "SearchFilters": {
+        "type": "object",
+        "properties": {
+          "genres": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "publisher": {
+            "type": "string"
+          },
+          "person": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          },
+          "series": {
+            "type": "string"
+          }
+        }
+      },
+      "SeriesPosition": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "string",
+            "nullable": true
+          },
+          "label": {
+            "type": "string"
+          },
+          "sortKey": {
+            "type": "number",
+            "nullable": true
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "point",
+              "range",
+              "set",
+              "label",
+              "unknown"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "complete",
+              "partial",
+              "unparsed",
+              "absent"
+            ]
+          },
+          "spans": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SeriesPositionSpan"
+            }
+          }
+        },
+        "required": [
+          "value",
+          "label",
+          "sortKey",
+          "kind",
+          "status",
+          "spans"
+        ]
+      }
+    },
+    "securitySchemes": {
+      "cookieAuth": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "auth_session",
+        "description": "Session cookie for authenticated requests"
+      },
+      "apiKeyAuth": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-API-Key",
+        "description": "API key for authenticated requests"
+      }
+    }
+  }
+}

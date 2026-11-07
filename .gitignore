@@ -159,6 +159,8 @@ celerybeat.pid
 
 # Environments
 .env
+.env.*
+!.env.example
 .venv
 env/
 venv/
@@ -234,7 +236,6 @@ pyrightconfig.json
 /downloaded_files
 /.local/
 *.local.*
-AGENTS.md
 .claude/
 CLAUDE.md
 .nvmrc

@@ -13,6 +13,8 @@ from typing import TYPE_CHECKING, Any, Protocol
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
+    from shelfmark.core.edition_ownership import LibraryRecording
+
 
 @dataclass(frozen=True)
 class LibraryEntry:
@@ -31,6 +33,7 @@ class LibraryEntry:
     # Series and author words. Shelf titles often bake these in ("Alex Cross 25:
     # Cross Kill"), so the matcher must not read them as naming a different work.
     context_tokens: frozenset[str] = frozenset()
+    _edition_recording: LibraryRecording | None = None
 
 
 class LibraryProvider(Protocol):

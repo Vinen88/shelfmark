@@ -1,0 +1,47 @@
+{
+  "reviewed": "2026-11-05",
+  "repository": "https://github.com/laxamentumtech/audnexus",
+  "revision": "6770ee97fce350eb8a052805bc0fb1372048ab4b",
+  "package_version": "1.15.2",
+  "repository_spec_version": "1.11.0",
+  "hosted_docs_version": "1.8.0",
+  "search": {
+    "method": "GET",
+    "path": "/books/search",
+    "parameters": [
+      "q",
+      "region"
+    ],
+    "response": "array of ApiBook",
+    "maximum": 10,
+    "source": "src/config/routes/books/search/show.ts"
+  },
+  "detail": {
+    "method": "GET",
+    "path": "/books/{ASIN}",
+    "parameters": [
+      "region",
+      "update",
+      "seedAuthors"
+    ],
+    "source": "src/config/types.ts"
+  },
+  "fields": [
+    "asin",
+    "region",
+    "title",
+    "subtitle",
+    "authors",
+    "narrators",
+    "publisherName",
+    "language",
+    "isbn",
+    "releaseDate",
+    "runtimeLengthMin",
+    "seriesPrimary",
+    "seriesSecondary",
+    "formatType",
+    "copyright"
+  ],
+  "note": "Search is verified in repository source, absent from older published OpenAPI. No catalog data copied."
+}

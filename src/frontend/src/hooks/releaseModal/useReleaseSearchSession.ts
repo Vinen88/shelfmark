@@ -271,10 +271,10 @@ export function useReleaseSearchSession(
 
       try {
         const response = await getReleases(
-          provider,
+          provider === 'edition_metadata' ? 'manual' : provider,
           bookId,
           tabName,
-          book.title,
+          book.provider === 'edition_metadata' ? book.search_title || book.title : book.title,
           book.author,
           expandSearch || undefined,
           languagesParam,
@@ -322,6 +322,7 @@ export function useReleaseSearchSession(
       book.author,
       book.provider,
       book.provider_id,
+      book.search_title,
       book.title,
       bookLanguages,
       cacheBook,

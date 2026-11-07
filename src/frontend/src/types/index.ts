@@ -46,6 +46,9 @@ export interface Book {
   display_fields?: DisplayField[]; // Provider-specific display data
   cover_aspect?: 'portrait' | 'square'; // Cover art aspect ratio hint
   // Series info (if book is part of a series)
+  edition_work_id?: string;
+  edition_work_title?: string;
+  edition_series_name?: string;
   series_id?: string; // Provider-specific series ID
   series_name?: string; // Name of the series
   series_position?: number; // This book's position (e.g., 3, 1.5 for novellas)

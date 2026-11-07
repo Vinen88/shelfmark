@@ -101,6 +101,11 @@ select = [
 ]
 ignore = ["D", "EM", "FBT", "PLR2004", "UP035", "TRY003", "E501", "TD002", "S104", "S603"]
 
+# The host-side deployment/recovery CLI needs only Python 3.10; the app runs on 3.14.
+[tool.ruff.per-file-target-version]
+"scripts/manage.py" = "py310"
+"scripts/fallback_config.py" = "py310"
+
 [tool.ruff.lint.per-file-ignores]
 "scripts/**/*.py" = [
     "BLE001",

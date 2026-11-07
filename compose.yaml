@@ -1,0 +1,27 @@
+name: ${SHELFMARK_PROJECT:-shelfmark-fork-lab}
+
+services:
+  shelfmark:
+    image: ${SHELFMARK_IMAGE:-shelfmark-fork:local}
+    build:
+      context: .
+      target: shelfmark
+      args:
+        BUILD_VERSION: native-editions
+        RELEASE_VERSION: 1.6.1-fork
+    container_name: ${SHELFMARK_CONTAINER_NAME:-shelfmark-fork-lab}
+    restart: unless-stopped
+    ports:
+      - "${SHELFMARK_BIND_ADDRESS:-127.0.0.1}:${SHELFMARK_PORT:-18084}:8084"
+    env_file:
+      - path: ${SHELFMARK_ENV_FILE:-.env}
+        required: false
+    environment:
+      TZ: ${TZ:-UTC}
+      PUID: ${PUID:-1000}
+      PGID: ${PGID:-1000}
+    volumes:
+      - "${SHELFMARK_CONFIG_ROOT:-./.local/run/config}:/config"
+      - "${SHELFMARK_BOOKS_ROOT:-./.local/run/books}:/books"
+      - "${SHELFMARK_MEDIA_ROOT:-./.local/run/media}:/media"
+      - "${SHELFMARK_DOWNLOADS_ROOT:-./.local/run/downloads}:/downloads"

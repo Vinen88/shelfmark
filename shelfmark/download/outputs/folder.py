@@ -199,20 +199,44 @@ def process_folder_output(
         record_step(steps, "cleanup_staging", path=str(prepared.working_path))
     log_plan_steps(task.task_id, steps)
 
-    final_paths, error, op_counts = transfer_book_files(
-        prepared.files,
-        destination=plan.destination,
-        task=task,
-        use_hardlink=use_hardlink,
-        is_torrent=is_torrent,
-        preserve_source=preserve_source,
-        organization_mode=plan.organization_mode,
-        source_root=source_path,
-    )
+    from shelfmark.download.outputs.edition import failure_message, notify_scan, prepare
+
+    try:
+        publication = prepare(
+            task, prepared.files, plan.destination, plan.organization_mode, cancel_flag
+        )
+    except (ValueError, OSError) as exc:
+        status_callback("error", failure_message(exc, "preparation"))
+        return None
+
+    try:
+        if publication is not None and not publication.sources:
+            final_paths, error, op_counts = [], None, {}
+        else:
+            final_paths, error, op_counts = transfer_book_files(
+                list(publication.sources) if publication else prepared.files,
+                destination=plan.destination,
+                task=task,
+                use_hardlink=use_hardlink,
+                is_torrent=is_torrent,
+                preserve_source=preserve_source,
+                organization_mode=plan.organization_mode,
+                source_root=source_path,
+                destination_paths=list(publication.transfer_paths) if publication else None,
+            )
+    except (ValueError, OSError) as exc:
+        if publication is None:
+            raise
+        status_callback("error", failure_message(exc, "transfer"))
+        return None
 
     if error:
-        logger.warning("Task %s: transfer failed: %s", task.task_id, error)
-        status_callback("error", error)
+        logger.warning(
+            "Task %s: transfer failed: %s",
+            task.task_id,
+            "Audio transfer failed" if publication else error,
+        )
+        status_callback("error", "Audio transfer failed" if publication else error)
         return None
 
     logger.info(
@@ -229,6 +253,14 @@ def process_folder_output(
             op_counts.get("copy", 0),
             len(final_paths),
         )
+
+    if publication is not None:
+        try:
+            publication.verify(final_paths, cancel_flag)
+        except (ValueError, OSError) as exc:
+            status_callback("error", failure_message(exc, "verification"))
+            return None
+        final_paths = list(publication.paths)
 
     script_context = CustomScriptContext(
         task=task,
@@ -273,6 +305,11 @@ def process_folder_output(
         message = "Complete"
     else:
         message = f"Complete ({len(final_paths)} files)"
+    if publication is not None:
+        if publication.already_present:
+            message = "Destination already contains this recording"
+        else:
+            notify_scan()
     status_callback("complete", message)
 
     task.download_paths = [str(path) for path in final_paths]

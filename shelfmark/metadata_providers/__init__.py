@@ -512,6 +512,10 @@ def is_provider_registered(provider_name: str) -> bool:
 
 def is_provider_enabled(provider_name: str) -> bool:
     """Check if a provider is enabled in settings."""
+    # Recording sources have their own opt-ins; core integration is always present.
+    if provider_name == "edition_metadata":
+        return True
+
     from shelfmark.core.config import config as app_config
 
     # Refresh config to get latest settings
@@ -724,3 +728,5 @@ with suppress(ImportError):
 
 with suppress(ImportError):
     from shelfmark.metadata_providers import dnb as dnb
+
+from shelfmark.metadata_providers.editions import provider as edition_provider  # noqa: E402, F401 -- register after the registry exists

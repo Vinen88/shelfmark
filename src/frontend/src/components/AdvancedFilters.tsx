@@ -185,7 +185,7 @@ export const AdvancedFilters = ({
         </div>
       )}
 
-      {searchMode === 'direct' && (
+      {(searchMode === 'direct' || activeMetadataProvider === 'edition_metadata') && (
         <div className="space-y-4">
           <form
             id="search-filters"
@@ -198,23 +198,27 @@ export const AdvancedFilters = ({
               defaultLanguageCodes={defaultLanguage}
               label="Language"
             />
-            <DropdownList
-              label="Content"
-              options={CONTENT_OPTIONS}
-              value={content}
-              onChange={handleContentChange}
-              placeholder="All"
-            />
-            <DropdownList
-              label="Formats"
-              placeholder="Any"
-              options={formatOptions}
-              value={formats}
-              onChange={handleFormatsChange}
-              multiple
-              showCheckboxes
-              keepOpenOnSelect
-            />
+            {searchMode === 'direct' && (
+              <>
+                <DropdownList
+                  label="Content"
+                  options={CONTENT_OPTIONS}
+                  value={content}
+                  onChange={handleContentChange}
+                  placeholder="All"
+                />
+                <DropdownList
+                  label="Formats"
+                  placeholder="Any"
+                  options={formatOptions}
+                  value={formats}
+                  onChange={handleFormatsChange}
+                  multiple
+                  showCheckboxes
+                  keepOpenOnSelect
+                />
+              </>
+            )}
           </form>
         </div>
       )}

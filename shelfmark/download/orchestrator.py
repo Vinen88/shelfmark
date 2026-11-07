@@ -251,7 +251,15 @@ def queue_release(
     user_id: int | None = None,
     username: str | None = None,
 ) -> tuple[bool, str | None]:
-    """Add a release to the download queue. Returns (success, error_message)."""
+    """Resolve selected recordings and add a release to the native download queue."""
+    from shelfmark.core.edition_handoff import resolve_release
+    from shelfmark.metadata_providers.editions.catalog_types import SourceError
+
+    try:
+        release_data, context = resolve_release(release_data)
+        edition_context = context.to_json() if context else None
+    except (ValueError, SourceError) as exc:
+        return False, "Edition selection rejected: " + str(exc)
     try:
         source = release_data["source"]
         unavailable_message = _source_unavailable_message(source)
@@ -319,6 +327,10 @@ def queue_release(
                 return False, email_error
             if email_to:
                 output_args = {"to": email_to}
+
+        # Freeze the exact server-resolved recording for output, history and retries.
+        if edition_context is not None:
+            output_args["edition_context"] = edition_context
 
         # Create a source-agnostic download task from release data
         task = DownloadTask(

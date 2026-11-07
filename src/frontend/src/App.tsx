@@ -473,6 +473,7 @@ function App() {
   // Search state and handlers
   const {
     books,
+    lastSearchQuery,
     setBooks,
     isSearching,
     searchInput,
@@ -528,16 +529,21 @@ function App() {
     contentType: ContentType;
   } | null>(null);
   const [selectedBook, setSelectedBook] = useState<Book | null>(null);
+  const detailsRequest = useRef(0);
+  const closeDetails = useCallback(() => {
+    detailsRequest.current += 1;
+    setSelectedBook(null);
+  }, []);
   const [releaseBook, setReleaseBook] = useState<Book | null>(null);
   const [activeResultsSort, setActiveResultsSort] = useState('');
 
   const resetSearchResultsState = useCallback(() => {
     setBooks([]);
-    setSelectedBook(null);
+    closeDetails();
     setReleaseBook(null);
     setActiveResultsSort('');
     clearTracking();
-  }, [clearTracking, setBooks]);
+  }, [clearTracking, setBooks, closeDetails]);
 
   const loadAdminUsers = useCallback(async () => {
     if (!isAuthenticated || !authIsAdmin || !requestRoleIsAdmin) {
@@ -947,8 +953,11 @@ function App() {
     ],
   );
 
-  // Non-admins in universal mode have nothing in the advanced panel
-  const hasAdvancedContent = requestRoleIsAdmin || effectiveSearchMode === 'direct';
+  // Edition language selection is available to non-admins as well.
+  const hasAdvancedContent =
+    requestRoleIsAdmin ||
+    effectiveSearchMode === 'direct' ||
+    effectiveMetadataProvider === 'edition_metadata';
   const effectiveShowAdvanced = hasAdvancedContent ? showAdvanced : false;
 
   const runSearchWithPolicyRefresh = useCallback(
@@ -980,12 +989,15 @@ function App() {
 
   // Show book details
   const handleShowDetails = async (id: string): Promise<void> => {
+    const request = ++detailsRequest.current;
     const book = books.find((entry) => entry.id === id);
+    setSelectedBook(book || null);
     const metadataBook = book && isMetadataBook(book) ? book : null;
 
     if (metadataBook) {
       try {
         const fullBook = await getMetadataBookInfo(metadataBook.provider, metadataBook.provider_id);
+        if (request !== detailsRequest.current) return;
         setSelectedBook({
           ...metadataBook,
           description: fullBook.description || metadataBook.description,
@@ -995,6 +1007,7 @@ function App() {
           series_count: fullBook.series_count,
         });
       } catch (error) {
+        if (request !== detailsRequest.current) return;
         console.error('Failed to load book description, using search data:', error);
         setSelectedBook(metadataBook);
       }
@@ -1004,8 +1017,10 @@ function App() {
           throw new Error('Book is missing source context');
         }
         const fullBook = await getSourceRecordInfo(book.source, id);
+        if (request !== detailsRequest.current) return;
         setSelectedBook(fullBook);
       } catch (error) {
+        if (request !== detailsRequest.current) return;
         console.error('Failed to load book details, using search data:', error);
         if (book) {
           setSelectedBook(book);
@@ -2294,7 +2309,7 @@ function App() {
 
       // Clear UI state
       setSearchInput('');
-      setSelectedBook(null);
+      closeDetails();
       setReleaseBook(null);
       clearTracking();
 
@@ -2331,6 +2346,7 @@ function App() {
       setSearchInput,
       seriesBrowseCapability?.sort,
       seriesBrowseTarget,
+      closeDetails,
       updateSearchFieldValue,
     ],
   );
@@ -2595,9 +2611,17 @@ function App() {
           />
 
           <ResultsSection
+            query={
+              new URLSearchParams(lastSearchQuery).get('query') ||
+              String(searchFieldValues.series || '')
+            }
+            onSearchSeries={
+              canSearchSeriesForBook(books[0] ?? null) ? handleSearchSeries : undefined
+            }
             books={books}
             visible={hasResults}
             onDetails={handleShowDetails}
+            onViewChange={closeDetails}
             onDownload={handleDownload}
             onGetReleases={handleGetReleases}
             getButtonState={getDirectActionButtonState}
@@ -2646,12 +2670,13 @@ function App() {
 
           {selectedBook && (
             <DetailsModal
+              key={selectedBook.id}
               book={selectedBook}
-              onClose={() => setSelectedBook(null)}
+              onClose={closeDetails}
               onDownload={handleDownload}
               onShowToast={showToast}
               onFindDownloads={(book) => {
-                setSelectedBook(null);
+                closeDetails();
                 void handleGetReleases(book);
               }}
               onSearchSeries={canSearchSeriesForBook(selectedBook) ? handleSearchSeries : undefined}

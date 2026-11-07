@@ -4,10 +4,13 @@ import { useSearchMode } from '../contexts/SearchModeContext';
 import { SORT_OPTIONS } from '../data/filterOptions';
 import { useMediaQuery } from '../hooks/useMediaQuery';
 import type { Book, ButtonStateInfo, SortOption } from '../types';
+import { editionSections, groupEditionBooks } from '../utils/editionPresentation';
 import { Dropdown } from './Dropdown';
+import { MetadataAttribution } from './MetadataAttribution';
 import { CardView } from './resultsViews/CardView';
 import { CompactView } from './resultsViews/CompactView';
 import { ListView } from './resultsViews/ListView';
+import { isInLibrary } from './shared/LibraryBadge';
 
 // Grid layout classes by view mode
 const GRID_CLASSES = {
@@ -17,6 +20,9 @@ const GRID_CLASSES = {
 } as const;
 
 interface ResultsSectionProps {
+  onViewChange?: () => void;
+  query?: string;
+  onSearchSeries?: (name: string) => void;
   books: Book[];
   visible: boolean;
   onDetails: (id: string) => Promise<void>;
@@ -40,6 +46,9 @@ interface ResultsSectionProps {
 }
 
 export const ResultsSection = ({
+  onViewChange,
+  query = '',
+  onSearchSeries,
   books,
   visible,
   onDetails,
@@ -79,12 +88,45 @@ export const ResultsSection = ({
   const isDesktop = useMediaQuery('(min-width: 640px)');
 
   const updateViewMode = (nextViewMode: 'card' | 'compact' | 'list') => {
+    onViewChange?.();
     setViewMode(nextViewMode);
     try {
       window.localStorage.setItem('bookViewMode', nextViewMode);
     } catch {
       // Best effort only.
     }
+  };
+
+  const gridClasses =
+    viewMode === 'list'
+      ? 'grid grid-cols-1 gap-3'
+      : `grid gap-6 ${!isDesktop ? GRID_CLASSES.mobile : GRID_CLASSES[viewMode]}`;
+  const actions = { onDetails, onDownload, onGetReleases, onShowToast };
+  const renderBook = (book: Book, index: number) => {
+    if (viewMode === 'list')
+      return (
+        <ListView
+          key={book.id}
+          books={[book]}
+          {...actions}
+          getButtonState={getButtonState}
+          getUniversalButtonState={getUniversalButtonState}
+          showSeriesPosition={sortValue === 'series_order'}
+        />
+      );
+    const props = {
+      book,
+      ...actions,
+      buttonState:
+        searchMode === 'universal' ? getUniversalButtonState(book.id) : getButtonState(book.id),
+      animationDelay: index * 50,
+      showSeriesPosition: sortValue === 'series_order',
+    };
+    return isDesktop && viewMode === 'card' ? (
+      <CardView key={book.id} {...props} />
+    ) : (
+      <CompactView key={book.id} {...props} showDetailsButton={!isDesktop} />
+    );
   };
 
   if (!visible) return null;
@@ -229,59 +271,83 @@ export const ResultsSection = ({
           </button>
         </div>
       </div>
-      {viewMode === 'list' ? (
-        <ListView
-          books={books}
-          onDetails={onDetails}
-          onDownload={onDownload}
-          onGetReleases={onGetReleases}
-          getButtonState={getButtonState}
-          getUniversalButtonState={getUniversalButtonState}
-          showSeriesPosition={sortValue === 'series_order'}
-          onShowToast={onShowToast}
-        />
-      ) : (
-        <div
-          id="results-grid"
-          className={`grid gap-8 ${!isDesktop ? GRID_CLASSES.mobile : GRID_CLASSES[viewMode]}`}
-        >
-          {books.map((book, index) => {
-            const shouldUseCardLayout = isDesktop && viewMode === 'card';
-            const animationDelay = index * 50;
-            // Use appropriate button state function based on search mode
-            const buttonState =
-              searchMode === 'universal'
-                ? getUniversalButtonState(book.id)
-                : getButtonState(book.id);
-
-            return shouldUseCardLayout ? (
-              <CardView
-                key={book.id}
-                book={book}
-                onDetails={onDetails}
-                onDownload={onDownload}
-                onGetReleases={onGetReleases}
-                buttonState={buttonState}
-                animationDelay={animationDelay}
-                showSeriesPosition={sortValue === 'series_order'}
-                onShowToast={onShowToast}
-              />
-            ) : (
-              <CompactView
-                key={book.id}
-                book={book}
-                onDetails={onDetails}
-                onDownload={onDownload}
-                onGetReleases={onGetReleases}
-                buttonState={buttonState}
-                showDetailsButton={!isDesktop}
-                animationDelay={animationDelay}
-                showSeriesPosition={sortValue === 'series_order'}
-                onShowToast={onShowToast}
-              />
-            );
-          })}
-        </div>
+      <MetadataAttribution books={books} />
+      {editionSections(books, query).map(
+        (section) =>
+          section.books.length > 0 && (
+            <div key={section.title || 'results'} className="mb-6 min-w-0">
+              {section.title && (
+                <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <h2 className="text-xl font-semibold">{section.title}</h2>
+                    <p className="text-sm opacity-70">
+                      Discovered books in series order ·{' '}
+                      {section.books.length + section.additional.length} catalog listings returned
+                    </p>
+                  </div>
+                  {onSearchSeries && (
+                    <button
+                      type="button"
+                      className="rounded-full border px-3 py-1 text-sm"
+                      onClick={() => onSearchSeries(section.title || '')}
+                    >
+                      View series
+                    </button>
+                  )}
+                </div>
+              )}
+              <div className={gridClasses}>
+                {groupEditionBooks(section.books).map((group) =>
+                  group.length === 1 ? (
+                    renderBook(group[0], 0)
+                  ) : (
+                    <details
+                      key={group[0].edition_work_id}
+                      className="col-span-full min-w-0 rounded-xl border border-gray-300/50 p-3 dark:border-gray-600"
+                      onToggle={(event) => {
+                        if (!event.currentTarget.open) onViewChange?.();
+                      }}
+                    >
+                      <summary className="cursor-pointer font-semibold break-words">
+                        {group[0].series_position != null && (
+                          <span className="mr-2 opacity-60">#{group[0].series_position}</span>
+                        )}
+                        {group[0].edition_work_title}
+                        <span className="ml-2 text-sm font-normal opacity-70">
+                          {group.length} catalog listings
+                          {group.some((book) => isInLibrary(book.library)) &&
+                            ' · Includes owned recordings'}
+                        </span>
+                        <span className="mt-1 block text-sm font-normal opacity-70">
+                          {group[0].author}
+                        </span>
+                      </summary>
+                      <div className={gridClasses + ' mt-4'}>{group.map(renderBook)}</div>
+                    </details>
+                  ),
+                )}
+              </div>
+              {section.additional.length > 0 && (
+                <details
+                  className="mt-4 min-w-0 rounded-xl border border-gray-300/50 p-3 dark:border-gray-600"
+                  onToggle={(event) => {
+                    if (!event.currentTarget.open) onViewChange?.();
+                  }}
+                >
+                  <summary className="cursor-pointer text-sm font-medium">
+                    Additional catalog matches ({section.additional.length})
+                    {section.additional.some((book) => isInLibrary(book.library)) &&
+                      ' · Includes owned recordings'}
+                  </summary>
+                  <p className="my-3 text-sm opacity-70">
+                    These listings have no supplied ASIN or recording ISBN. They may describe the
+                    recordings above or different recordings; that relationship is unverified.
+                  </p>
+                  <div className={gridClasses}>{section.additional.map(renderBook)}</div>
+                </details>
+              )}
+            </div>
+          ),
       )}
       {books.length === 0 && <div className="mt-4 text-sm opacity-80">No results found.</div>}
 

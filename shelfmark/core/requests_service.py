@@ -654,6 +654,17 @@ def fulfil_request(
             status_code=400,
         )
 
+    from shelfmark.core.edition_handoff import bind_request_locator
+
+    try:
+        selected_release_data = bind_request_locator(
+            request_row.get("book_data"), selected_release_data
+        )
+    except ValueError as exc:
+        raise RequestServiceError(
+            str(exc), status_code=400, code="edition_context_invalid"
+        ) from exc
+
     _validate_json_blob_size("release_data", selected_release_data)
 
     requester = user_db.get_user(user_id=request_row["user_id"])

@@ -4,6 +4,7 @@ import { useSearchMode } from '../../contexts/SearchModeContext';
 import type { Book, ButtonStateInfo } from '../../types';
 import { getDownloadsCount } from '../../types';
 import { bookSupportsTargets } from '../../utils/bookTargetLoader';
+import { cardDisplayFields } from '../../utils/editionPresentation';
 import { BookActionButton } from '../BookActionButton';
 import { BookTargetDropdown } from '../BookTargetDropdown';
 import { DisplayFieldBadges, LibraryBadge } from '../shared';
@@ -70,7 +71,7 @@ export const CardView = ({
   return (
     // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- mouse handlers drive a decorative hover shadow only; no interactive behavior requiring keyboard support
     <article
-      className="book-card space-between animate-pop-up relative flex h-full w-full flex-col transition-shadow duration-300 max-sm:h-[180px] max-sm:flex-row sm:max-w-[292px] sm:flex-col"
+      className="book-card space-between animate-pop-up relative flex h-full w-full min-w-0 flex-col transition-shadow duration-300 max-sm:min-h-[180px] max-sm:flex-row sm:max-w-[292px] sm:flex-col"
       style={{
         background: 'var(--bg-soft)',
         borderRadius: '.75rem',
@@ -180,7 +181,7 @@ export const CardView = ({
         </div>
       </div>
 
-      <div className="flex flex-col gap-3 p-4 max-sm:min-w-0 max-sm:flex-1 max-sm:justify-between max-sm:gap-2 max-sm:p-3 max-sm:py-2 sm:flex sm:flex-1 sm:flex-col sm:justify-end">
+      <div className="flex min-w-0 flex-col gap-3 p-4 max-sm:flex-1 max-sm:justify-between max-sm:gap-2 max-sm:p-3 max-sm:py-2 sm:flex sm:flex-1 sm:flex-col sm:justify-end">
         <div className="space-y-1 max-sm:min-w-0 max-sm:space-y-0.5">
           <h3
             className="line-clamp-2 text-base leading-tight font-semibold max-sm:line-clamp-3 max-sm:min-w-0"
@@ -195,9 +196,7 @@ export const CardView = ({
             <div className="flex flex-wrap gap-2 text-xs opacity-70 max-sm:gap-1 max-sm:text-[10px]">
               <span>{book.year || '-'}</span>
               <span>•</span>
-              <DisplayFieldBadges
-                fields={book.display_fields.filter((f) => f.icon !== 'editions')}
-              />
+              <DisplayFieldBadges fields={cardDisplayFields(book)} />
             </div>
           ) : (
             <div className="flex flex-wrap gap-2 text-xs opacity-70 max-sm:gap-1 max-sm:text-[10px]">

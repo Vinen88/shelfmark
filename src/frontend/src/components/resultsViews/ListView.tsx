@@ -5,6 +5,7 @@ import type { Book, ButtonStateInfo, DisplayField } from '../../types';
 import { getDownloadsCount } from '../../types';
 import { bookSupportsTargets } from '../../utils/bookTargetLoader';
 import { getFormatColor, getLanguageColor } from '../../utils/colorMaps';
+import { cardDisplayFields } from '../../utils/editionPresentation';
 import { BookActionButton } from '../BookActionButton';
 import { BookTargetDropdown } from '../BookTargetDropdown';
 import { DisplayFieldIcon, DisplayFieldBadge, LibraryBadge } from '../shared';
@@ -133,23 +134,32 @@ export const ListView = ({
           const buttonState =
             searchMode === 'universal' ? getUniversalButtonState(book.id) : getButtonState(book.id);
           const isLoadingDetails = detailsLoadingId === book.id;
-          const ratingField = book.display_fields?.find((field) => field.icon === 'star');
-          const lengthField = book.display_fields?.find(
-            (field) => field.icon === 'clock' || field.icon === 'book',
+          const ratingField =
+            book.provider === 'edition_metadata'
+              ? cardDisplayFields(book).find((field) => field.label === 'Part')
+              : book.display_fields?.find((field) => field.icon === 'star');
+          const lengthField = book.display_fields?.find((field) =>
+            book.provider === 'edition_metadata'
+              ? field.label === 'Production'
+              : field.icon === 'clock' || field.icon === 'book',
           );
-          const narratorField = book.display_fields?.find((field) => field.icon === 'microphone');
+          const narratorField = cardDisplayFields(book).find(
+            (field) => field.icon === 'microphone',
+          );
           const targetProvider = book.provider;
           const targetBookId = book.provider_id;
           const mobileDisplayFields =
             searchMode === 'universal' && book.display_fields
-              ? getKeyedDisplayFields(
-                  book.display_fields.filter((field) => field.icon !== 'editions').slice(0, 2),
-                )
+              ? getKeyedDisplayFields(cardDisplayFields(book).slice(0, 2))
               : [];
 
           // Compute color styles for direct mode badges
           const languageColor = getLanguageColor(book.language);
           const formatColor = getFormatColor(book.format);
+          const universalColumns =
+            book.provider === 'edition_metadata'
+              ? 'grid-cols-[auto_minmax(0,1fr)_auto] sm:grid-cols-[auto_minmax(0,2fr)_minmax(0,0.25fr)_minmax(0,0.5fr)_minmax(0,0.7fr)_auto]'
+              : 'grid-cols-[auto_minmax(0,1fr)_minmax(0,64px)_auto] sm:grid-cols-[auto_minmax(0,2fr)_minmax(0,0.25fr)_minmax(0,0.5fr)_minmax(0,0.5fr)_minmax(0,0.7fr)_auto]';
 
           return (
             <div
@@ -167,7 +177,7 @@ export const ListView = ({
               <div
                 className={`grid w-full items-center gap-2 sm:gap-x-0.5 sm:gap-y-1 ${
                   searchMode === 'universal'
-                    ? 'grid-cols-[auto_minmax(0,1fr)_auto_auto] sm:grid-cols-[auto_minmax(0,2fr)_minmax(50px,0.25fr)_minmax(90px,0.5fr)_minmax(90px,0.5fr)_minmax(120px,0.7fr)_auto]'
+                    ? universalColumns
                     : 'grid-cols-[auto_minmax(0,1fr)_auto_auto] sm:grid-cols-[auto_minmax(0,2fr)_minmax(50px,0.25fr)_minmax(60px,0.3fr)_minmax(60px,0.3fr)_minmax(60px,0.3fr)_minmax(70px,0.35fr)_auto]'
                 }`}
               >
@@ -204,15 +214,28 @@ export const ListView = ({
                     {book.year && <span className="sm:hidden"> • {book.year}</span>}
                   </p>
                   <LibraryBadge library={book.library} className="mt-0.5" />
+                  {book.provider === 'edition_metadata' && (
+                    <div className="flex min-w-0 flex-wrap gap-x-2 text-[10px] opacity-70 sm:hidden">
+                      {cardDisplayFields(book).map((field) => (
+                        <span key={field.label}>{field.value}</span>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 {/* Mobile universal mode info */}
-                <div className="flex flex-col items-end text-[10px] leading-tight opacity-70 sm:hidden">
+                <div
+                  className={
+                    book.provider === 'edition_metadata'
+                      ? 'hidden'
+                      : 'flex min-w-0 flex-col items-end text-[10px] leading-tight opacity-70 sm:hidden'
+                  }
+                >
                   {mobileDisplayFields.length > 0 ? (
                     mobileDisplayFields.map(({ field, key }) => (
                       <span key={key} className="flex items-center gap-0.5" title={field.label}>
                         <DisplayFieldIcon icon={field.icon} />
-                        <span>{field.value}</span>
+                        <span className="min-w-0 truncate">{field.value}</span>
                       </span>
                     ))
                   ) : (
@@ -248,7 +271,13 @@ export const ListView = ({
                       )}
                     </div>
                     {/* Narrator column */}
-                    <div className="hidden justify-start sm:flex">
+                    <div
+                      className={
+                        book.provider === 'edition_metadata'
+                          ? 'hidden'
+                          : 'hidden justify-start sm:flex'
+                      }
+                    >
                       {narratorField ? (
                         <DisplayFieldBadge field={narratorField} />
                       ) : (
