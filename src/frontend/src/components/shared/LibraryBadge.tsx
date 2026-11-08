@@ -17,15 +17,22 @@ interface LibraryBadgeProps {
   /** Solid pill for use over cover art; otherwise a tinted inline pill. */
   overlay?: boolean;
   className?: string;
+  edition?: boolean;
 }
 
 /** "Already in your library" badge. Renders nothing when the book is not held. */
-export function LibraryBadge({ library, overlay = false, className = '' }: LibraryBadgeProps) {
+export function LibraryBadge({
+  library,
+  overlay = false,
+  className = '',
+  edition = false,
+}: LibraryBadgeProps) {
   if (!isInLibrary(library)) return null;
 
   const collectionOnly = isCollectionOnly(library);
   const label = collectionOnly ? 'In your library, inside a collection' : 'Already in your library';
-  const text = collectionOnly ? 'In a collection' : 'In library';
+  const ownedText = edition ? 'Owned' : 'In library';
+  const text = collectionOnly ? 'In a collection' : ownedText;
 
   const pill = overlay
     ? 'rounded-md border border-sky-700 bg-sky-600 px-1.5 py-0.5 text-[10px] font-bold text-white'

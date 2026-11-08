@@ -1,7 +1,4 @@
-"""Trusted, private recording evidence and exact ownership decisions.
-
-No library fetching, settings, queues or title-similarity ownership fallback.
-"""
+"""Exact recording ownership and a separate, display-only literary work projection."""
 
 import json
 import re
@@ -12,7 +9,13 @@ from shelfmark.metadata_providers import BookMetadata
 from shelfmark.metadata_providers.editions.catalog_types import AggregatedEdition
 from shelfmark.metadata_providers.editions.identity import EditionIdentity
 from shelfmark.metadata_providers.editions.multisource import encode_identity, normalized_isbn
-from shelfmark.metadata_providers.editions.search_ranking import ADAPTATION, PART, language, words
+from shelfmark.metadata_providers.editions.search_ranking import (
+    ADAPTATION,
+    PART,
+    language,
+    literary_title,
+    words,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
@@ -122,9 +125,19 @@ class LibraryRecording:
     part: int | None
     total: int | None
     valid: bool = True
+    work_title: str = ""
+    authors: frozenset[str] = frozenset()
+    series: frozenset[tuple[str, float]] = frozenset()
 
 
-def library_recording(item: Mapping[str, object]) -> LibraryRecording:
+def _series_position(value: object) -> float | None:
+    text = str(value)
+    return float(text) if re.fullmatch(r"\d+(?:\.\d+)?", text) else None
+
+
+def library_recording(
+    item: Mapping[str, object], *, work_title: str | None = None
+) -> LibraryRecording:
     """Read actual ABS fields; malformed new fields never break native indexing."""
     media = item.get("media")
     raw = media.get("metadata") if isinstance(media, dict) else None
@@ -158,6 +171,36 @@ def library_recording(item: Mapping[str, object]) -> LibraryRecording:
     # describes abridgement and is deliberately not a style classification.
     if re.search(r"\b(?:conventional|single[- ]narrator)\b", title, re.IGNORECASE):
         production = "conventional"
+    authors = meta.get("authors")
+    author_names = (
+        [
+            row["name"]
+            for row in authors
+            if isinstance(row, dict) and isinstance(row.get("name"), str)
+        ]
+        if isinstance(authors, list)
+        else []
+    )
+    author_display = meta.get("authorName")
+    if not author_names and isinstance(author_display, str):
+        author_names = [author_display]
+    series: set[tuple[str, float]] = set()
+    raw_series = meta.get("series")
+    if isinstance(raw_series, list):
+        for row in raw_series:
+            if isinstance(row, dict) and isinstance(row.get("name"), str):
+                position = _series_position(row.get("sequence"))
+                if position is not None:
+                    series.add((words(row["name"]), position))
+    series_display = meta.get("seriesName")
+    if not series and isinstance(series_display, str):
+        for name, sequence in re.findall(r"(?:^|, )([^#]+) #(\d+(?:\.\d+)?)", series_display):
+            series.add((words(name), float(sequence)))
+    work_title = words(literary_title(work_title if work_title is not None else title))
+    # Stripping "Book N" is safe only with corroborating literary position.
+    numbered = re.search(r"\bBook\s+(\d+(?:\.\d+)?)\b", title, re.IGNORECASE)
+    if numbered and not any(position == float(numbered[1]) for _, position in series):
+        work_title = ""
     return LibraryRecording(
         raw_isbn,
         frozenset(words(n) for n in names if words(n)),
@@ -167,6 +210,9 @@ def library_recording(item: Mapping[str, object]) -> LibraryRecording:
         int(part[1] or part[3]) if part else None,
         int(part[2]) if part and part[2] else None,
         valid,
+        work_title,
+        frozenset(words(name) for name in author_names if words(name)),
+        frozenset(series),
     )
 
 
@@ -243,3 +289,53 @@ def match_edition_entries(book: BookMetadata, entries: Sequence[EntryLike]) -> s
     ):
         return None
     return "owned" if any(_owned(context, entry) for entry in entries) else None
+
+
+def work_in_entries(book: BookMetadata, entries: Sequence[EntryLike]) -> bool:
+    """UI only: literary evidence may identify a work, never a selected recording.
+
+    Reuse exact ownership first. Otherwise require a verified shared work ID or
+    identical literary title and full authors, with explicit series positions
+    agreeing. A title equal to its series requires the position as well.
+    """
+    if match_edition_entries(book, entries):
+        return True
+    if not isinstance(book, EditionBookMetadata) or book._edition_ownership is None:
+        return False
+    context = book._edition_ownership
+    if (book.provider, book.provider_id) != (
+        context.identity.provider,
+        context.identity.provider_id,
+    ):
+        return False
+    title = words(book.edition_work_title or literary_title(book.title))
+    authors = frozenset(words(name) for name in book.authors if words(name))
+    series = words(book.edition_series_name or book.series_name or "")
+    position = _series_position(book.series_position)
+    # Only real namespaced work IDs qualify; synthesized grouping keys do not.
+    work_id = book.edition_work_id or ""
+    shared_id = ("audiobookdb", work_id.removeprefix("audiobookdb:"))
+    for entry in entries:
+        ids = {pair for pair in entry.external_ids if pair[0] == "audiobookdb"}
+        if work_id.startswith("audiobookdb:") and ids:
+            if shared_id in ids:
+                return True
+            continue
+        recording = getattr(entry, "_edition_recording", None)
+        if not isinstance(recording, LibraryRecording) or not recording.valid:
+            continue
+        if (
+            not title
+            or title != recording.work_title
+            or not authors
+            or authors != recording.authors
+        ):
+            continue
+        if series and position is not None:
+            if (series, position) not in recording.series:
+                continue
+        elif recording.series or (series and title == series):
+            # An explicit position on only one side cannot establish which book.
+            continue
+        return True
+    return False

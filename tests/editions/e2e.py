@@ -51,7 +51,7 @@ from test_search_refinement import RegionalHttp
 from shelfmark.core import library_index
 from shelfmark.core.config import config
 from shelfmark.core.edition_handoff import EditionLocator, context_from_task
-from shelfmark.core.edition_ownership import ownership_evidence
+from shelfmark.core.edition_ownership import ownership_evidence, work_in_entries
 from shelfmark.core.library_providers import audiobookshelf
 from shelfmark.core.queue import book_queue
 from shelfmark.core.release_routes import register_release_routes
@@ -298,6 +298,7 @@ with (
         assert library_index.match_entries(book, entries) == "owned"
         if index == 0:
             assert library_index.match_entries(ga[1], entries) is None
+            assert work_in_entries(ga[1], entries)
         print(
             "PASS",
             label,

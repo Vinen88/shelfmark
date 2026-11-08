@@ -607,6 +607,9 @@ def _attach_library_ownership(book: Any, book_dict: dict[str, Any]) -> None:
     owned = library_index.ownership(book)
     if owned is not None:
         book_dict["library"] = owned
+    work_owned = library_index.work_owned(book)
+    if work_owned is not None:
+        book_dict["work_owned"] = work_owned
 
 
 register_metadata_routes(

@@ -1,10 +1,39 @@
 import { describe, it, expect } from 'vitest';
 
+import { transformMetadataToBook } from '../utils/bookTransformers';
 import { groupEditionBooks, editionSections } from '../utils/editionPresentation';
 import { buildReleaseDownloadPayload } from '../utils/releasePayload';
-import { seriesBooks } from './seriesFixtures';
+import { seriesBooks, workBooks } from './seriesFixtures';
 
 describe('evidenced work presentation', () => {
+  it('keeps work ownership separate through API transformation, grouping and exact Get', () => {
+    const book = transformMetadataToBook({
+      provider: 'edition_metadata',
+      provider_id: 'only-returned-recording',
+      title: 'The Primal Hunter',
+      authors: ['Zogarth'],
+      work_owned: true,
+      library: { audiobook: null },
+    });
+    expect(book.work_owned).toBe(true);
+    expect(book.library?.audiobook).toBeNull();
+    const before = JSON.stringify(workBooks);
+    const groups = groupEditionBooks(workBooks);
+    expect(groups.map((group) => group.length)).toEqual([2, 1, 1]);
+    expect(groups[0].map((child) => child.library?.audiobook)).toEqual(['owned', undefined]);
+    expect(groups[1][0].work_owned).toBe(false);
+    expect(groups[2][0].work_owned).toBe(true);
+    for (const child of groups.flat()) {
+      const payload = buildReleaseDownloadPayload(
+        child,
+        { source: 'prowlarr', source_id: 'synthetic', title: child.title },
+        'audiobook',
+      );
+      expect(payload.edition_context?.provider_id).toBe(child.provider_id);
+      expect(payload).not.toHaveProperty('work_owned');
+    }
+    expect(JSON.stringify(workBooks)).toBe(before);
+  });
   it('groups only returned children and preserves each exact payload and ownership', () => {
     const before = JSON.stringify(seriesBooks);
     const groups = groupEditionBooks(seriesBooks);

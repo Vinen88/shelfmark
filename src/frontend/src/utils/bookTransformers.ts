@@ -7,6 +7,7 @@ import { isRecord, isStringArray } from './objectHelpers';
  */
 export interface MetadataBookData {
   library?: LibraryOwnership; // ownership flags from the library check
+  work_owned?: boolean;
   provider: string;
   provider_display_name?: string;
   provider_id: string;
@@ -110,6 +111,7 @@ export function transformMetadataToBook(data: MetadataBookData): Book {
     authors: data.authors,
     titles_by_language: data.titles_by_language,
     library: data.library,
+    work_owned: data.work_owned,
     info: {
       ...(data.isbn_13 && { ISBN: data.isbn_13 }),
       ...(data.isbn_10 && !data.isbn_13 && { ISBN: data.isbn_10 }),

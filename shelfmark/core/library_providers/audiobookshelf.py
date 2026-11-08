@@ -83,7 +83,7 @@ def _item_to_entry(item: dict[str, Any]) -> LibraryEntry:
         frozenset(),
         frozenset(title_tok),
         frozenset(context_tok),
-        _edition_recording=library_recording(item),
+        _edition_recording=library_recording(item, work_title=title),
     )
 
 

@@ -116,33 +116,39 @@ describe('additional unidentified catalog matches', () => {
     ).toEqual([catalog]);
   });
 
-  it('renders a closed, clearly qualified disclosure with unchanged child controls and total count', () => {
-    const markup = renderToStaticMarkup(
-      <SearchModeProvider searchMode="universal">
-        <ResultsSection
-          books={catalogBooks}
-          visible
-          query="The Lantern Road"
-          sortValue="relevance"
-          onSortChange={() => {}}
-          onDetails={async () => {}}
-          onDownload={async () => {}}
-          onGetReleases={async () => {}}
-          getButtonState={() => ({ text: 'Get', state: 'download' })}
-          getUniversalButtonState={() => ({ text: 'Get', state: 'download' })}
-        />
-      </SearchModeProvider>,
-    );
-    expect(markup).toContain('13 catalog listings returned');
-    expect(markup).toContain('Additional catalog matches (3)');
-    expect(markup).toContain('that relationship is unverified');
-    expect(markup).toContain('Includes owned recordings');
-    expect(markup.match(/<details\b/g)).toHaveLength(1);
-    expect(markup).not.toMatch(/<details[^>]*\bopen(?:=|\s|>)/);
-    expect(markup.match(/aria-label="Get releases for/g)).toHaveLength(13);
-    expect(markup).toContain('B000000010');
-    expect(markup.indexOf('Additional catalog matches')).toBeGreaterThan(
-      markup.indexOf('B000000010'),
-    );
-  });
+  it.each([false, true])(
+    'renders a qualified disclosure and independent work ownership (%s)',
+    (workOwned) => {
+      const markup = renderToStaticMarkup(
+        <SearchModeProvider searchMode="universal">
+          <ResultsSection
+            books={catalogBooks.map((book) =>
+              book.id === catalog.id ? Object.assign({}, book, { work_owned: workOwned }) : book,
+            )}
+            visible
+            query="The Lantern Road"
+            sortValue="relevance"
+            onSortChange={() => {}}
+            onDetails={async () => {}}
+            onDownload={async () => {}}
+            onGetReleases={async () => {}}
+            getButtonState={() => ({ text: 'Get', state: 'download' })}
+            getUniversalButtonState={() => ({ text: 'Get', state: 'download' })}
+          />
+        </SearchModeProvider>,
+      );
+      expect(markup).toContain('13 catalog listings returned');
+      expect(markup).toContain('Additional catalog matches (3)');
+      expect(markup).toContain('that relationship is unverified');
+      expect(markup).toContain('Includes owned recordings');
+      expect(markup.match(/<details\b/g)).toHaveLength(workOwned ? 2 : 1);
+      expect(markup.match(/>In library</g)?.length || 0).toBe(workOwned ? 1 : 0);
+      expect(markup).not.toMatch(/<details[^>]*\bopen(?:=|\s|>)/);
+      expect(markup.match(/aria-label="Get releases for/g)).toHaveLength(13);
+      expect(markup).toContain('B000000010');
+      expect(markup.indexOf('Additional catalog matches')).toBeGreaterThan(
+        markup.indexOf('B000000010'),
+      );
+    },
+  );
 });

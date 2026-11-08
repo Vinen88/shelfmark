@@ -10,7 +10,7 @@ import { MetadataAttribution } from './MetadataAttribution';
 import { CardView } from './resultsViews/CardView';
 import { CompactView } from './resultsViews/CompactView';
 import { ListView } from './resultsViews/ListView';
-import { isInLibrary } from './shared/LibraryBadge';
+import { isInLibrary, LibraryBadge } from './shared/LibraryBadge';
 
 // Grid layout classes by view mode
 const GRID_CLASSES = {
@@ -128,6 +128,39 @@ export const ResultsSection = ({
       <CompactView key={book.id} {...props} showDetailsButton={!isDesktop} />
     );
   };
+  const renderGroup = (group: Book[]) =>
+    group.length === 1 && !group[0].work_owned ? (
+      renderBook(group[0], 0)
+    ) : (
+      <details
+        key={group[0].edition_work_id || group[0].id}
+        className="col-span-full min-w-0 rounded-xl border border-gray-300/50 p-3 dark:border-gray-600"
+        onToggle={(event) => {
+          if (!event.currentTarget.open) onViewChange?.();
+        }}
+      >
+        <summary className="cursor-pointer font-semibold break-words">
+          {group[0].series_position != null && (
+            <span className="mr-2 opacity-60">#{group[0].series_position}</span>
+          )}
+          {group[0].edition_work_title || group[0].title}
+          <LibraryBadge
+            library={
+              group.some((book) => book.work_owned || book.library?.audiobook === 'owned')
+                ? { audiobook: 'owned' }
+                : undefined
+            }
+            className="ml-2 inline-flex"
+          />
+          <span className="ml-2 text-sm font-normal opacity-70">
+            {group.length} catalog listings
+            {group.some((book) => isInLibrary(book.library)) && ' · Includes owned recordings'}
+          </span>
+          <span className="mt-1 block text-sm font-normal opacity-70">{group[0].author}</span>
+        </summary>
+        <div className={gridClasses + ' mt-4'}>{group.map(renderBook)}</div>
+      </details>
+    );
 
   if (!visible) return null;
 
@@ -296,37 +329,7 @@ export const ResultsSection = ({
                   )}
                 </div>
               )}
-              <div className={gridClasses}>
-                {groupEditionBooks(section.books).map((group) =>
-                  group.length === 1 ? (
-                    renderBook(group[0], 0)
-                  ) : (
-                    <details
-                      key={group[0].edition_work_id}
-                      className="col-span-full min-w-0 rounded-xl border border-gray-300/50 p-3 dark:border-gray-600"
-                      onToggle={(event) => {
-                        if (!event.currentTarget.open) onViewChange?.();
-                      }}
-                    >
-                      <summary className="cursor-pointer font-semibold break-words">
-                        {group[0].series_position != null && (
-                          <span className="mr-2 opacity-60">#{group[0].series_position}</span>
-                        )}
-                        {group[0].edition_work_title}
-                        <span className="ml-2 text-sm font-normal opacity-70">
-                          {group.length} catalog listings
-                          {group.some((book) => isInLibrary(book.library)) &&
-                            ' · Includes owned recordings'}
-                        </span>
-                        <span className="mt-1 block text-sm font-normal opacity-70">
-                          {group[0].author}
-                        </span>
-                      </summary>
-                      <div className={gridClasses + ' mt-4'}>{group.map(renderBook)}</div>
-                    </details>
-                  ),
-                )}
-              </div>
+              <div className={gridClasses}>{groupEditionBooks(section.books).map(renderGroup)}</div>
               {section.additional.length > 0 && (
                 <details
                   className="mt-4 min-w-0 rounded-xl border border-gray-300/50 p-3 dark:border-gray-600"
@@ -343,7 +346,9 @@ export const ResultsSection = ({
                     These listings have no supplied ASIN or recording ISBN. They may describe the
                     recordings above or different recordings; that relationship is unverified.
                   </p>
-                  <div className={gridClasses}>{section.additional.map(renderBook)}</div>
+                  <div className={gridClasses}>
+                    {groupEditionBooks(section.additional).map(renderGroup)}
+                  </div>
                 </details>
               )}
             </div>

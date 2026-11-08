@@ -259,6 +259,19 @@ def ownership(book: BookMetadata) -> dict[str, str | None] | None:
     return result or None
 
 
+def work_owned(book: BookMetadata) -> bool | None:
+    """Display-only audiobook work ownership using the same accessible index.
+
+    Do not use for automatic requests or downloads: those require exact ownership.
+    """
+    from shelfmark.core.edition_ownership import PROVIDER, work_in_entries
+
+    providers = _enabled_providers("audiobook") if book.provider == PROVIDER else []
+    if not providers:
+        return None
+    return any(work_in_entries(book, _entries_for(provider)) for provider in providers)
+
+
 def test_connection(provider_name: str, current_values: Mapping[str, Any] | None) -> dict[str, Any]:
     """Settings action: index one library now and report the item count.
 

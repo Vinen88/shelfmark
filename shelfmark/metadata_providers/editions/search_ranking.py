@@ -52,7 +52,7 @@ def literary_title(value: str) -> str:
     value = re.sub(
         r"[\[(](?:full[- ]cast editions?|narrated by [^\])]+)[\])]", "", value, flags=re.IGNORECASE
     )
-    value = PART.sub("", ADAPTATION.sub("", value))
+    value = PART.sub("", ADAPTATION.sub("", value)).strip(" ,:;()[]")
     return re.sub(r",?\s+Book\s+\d+(?:\.\d+)?\s*$", "", value, flags=re.IGNORECASE).strip(
         " ,:;()[]"
     )

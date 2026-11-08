@@ -213,7 +213,11 @@ export const ListView = ({
                     {book.author || 'Unknown author'}
                     {book.year && <span className="sm:hidden"> • {book.year}</span>}
                   </p>
-                  <LibraryBadge library={book.library} className="mt-0.5" />
+                  <LibraryBadge
+                    edition={book.provider === 'edition_metadata'}
+                    library={book.library}
+                    className="mt-0.5"
+                  />
                   {book.provider === 'edition_metadata' && (
                     <div className="flex min-w-0 flex-wrap gap-x-2 text-[10px] opacity-70 sm:hidden">
                       {cardDisplayFields(book).map((field) => (

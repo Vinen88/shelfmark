@@ -50,3 +50,24 @@ export const seriesBooks: Book[] = [4, 6]
       display_fields: [{ label: 'Narrators', value: 'Natalie Dormer' }],
     },
   ]);
+
+// Synthetic Primal Hunter regression: ABS owns a different recording of book 1.
+export const workBooks: Book[] = [1, 2, 3].flatMap((position) =>
+  (position === 1 ? ['owned', 'available'] : ['available']).map((recording) => ({
+    id: `edition_metadata:primal-${position}-${recording}`,
+    provider: 'edition_metadata',
+    provider_id: `primal-${position}-${recording}`,
+    title: `The Primal Hunter, Book ${position}`,
+    author: 'Zogarth',
+    authors: ['Zogarth'],
+    edition_work_id: `audiobookdb:primal-fixture-${position}`,
+    edition_work_title: 'The Primal Hunter',
+    edition_series_name: 'The Primal Hunter',
+    series_name: 'The Primal Hunter',
+    series_position: position,
+    content_type: 'audiobook',
+    work_owned: position !== 2,
+    library: recording === 'owned' ? { audiobook: 'owned' as const } : undefined,
+    display_fields: [{ label: 'Narrators', value: `Fixture ${recording} narrator` }],
+  })),
+);

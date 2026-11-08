@@ -11,7 +11,7 @@ import { searchMetadata } from '../services/api';
 import type { Book, ButtonStateInfo } from '../types';
 import { buildReleaseDownloadPayload } from '../utils/releasePayload';
 import { catalogBooks } from './catalogFixtures';
-import { seriesBooks } from './seriesFixtures';
+import { seriesBooks, workBooks } from './seriesFixtures';
 
 import '../styles.css';
 
@@ -21,9 +21,11 @@ function Harness() {
   const [query, setQuery] = useState(
     new URLSearchParams(location.search).get('query') || 'Harry Potter',
   );
-  const [books, setBooks] = useState(
-    new URLSearchParams(location.search).has('catalog_fixture') ? catalogBooks : seriesBooks,
-  );
+  const [books, setBooks] = useState(() => {
+    const params = new URLSearchParams(location.search);
+    if (params.has('catalog_fixture')) return catalogBooks;
+    return params.has('work_fixture') ? workBooks : seriesBooks;
+  });
   useMountEffect(() => {
     if (new URLSearchParams(location.search).has('api_fixture')) {
       void searchMetadata(query, 40, 'relevance', {}, 1, 'audiobook', 'edition_metadata').then(

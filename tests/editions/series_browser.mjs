@@ -73,7 +73,7 @@ try {
     await page.keyboard.press('Enter');
     await additional.getByText('that relationship is unverified.', { exact: false }).waitFor();
     assert.equal(await getButtons.count(), 13);
-    assert.equal(await additional.getByText('In library', { exact: true }).count(), 1);
+    assert.equal(await additional.getByText('Owned', { exact: true }).count(), 1);
     const extraButtons = additional.getByRole('button', { name: /^Get releases for/ });
     for (const [index, position] of [1, 3, 10].entries()) {
       await extraButtons.nth(index).click();
@@ -117,12 +117,40 @@ try {
     const unidentified = fixture.books.filter(book => !book.isbn_10 && !book.isbn_13
       && !book.display_fields.some(field => field.label === 'ASIN' && field.value.trim()));
     assert.equal(await page.getByText('Catalog listing · ASIN/ISBN not supplied', { exact: true }).count(), unidentified.length);
-    assert.equal(await page.getByText('In library', { exact: true }).count(),
+    assert.equal(await page.getByText('Owned', { exact: true }).count(),
       fixture.books.filter(book => book.library?.audiobook === 'owned').length);
     await page.screenshot({ path: `${out}/captured-results.png`, fullPage: true, animations: 'disabled' });
     assert.deepEqual(errors, []);
     console.log(`PASS: private API replay ${fixture.books.length} backend rows = ${selected.length} frontend children; exact Get IDs`);
   }
+  await page.goto('http://127.0.0.1:5173/series-review.html?work_fixture=1&query=The%20Primal%20Hunter');
+  const workGroups = page.locator('details');
+  await workGroups.first().locator('summary').waitFor();
+  assert.equal(await workGroups.count(), 2, 'mixed recordings and owned singleton each have a work parent');
+  for (const [view, width] of [['Card', 1280], ['Compact', 1280], ['List', 1280], ['Compact', 390], ['List', 390]]) {
+    await page.setViewportSize({ width, height: 1000 });
+    await page.getByRole('button', { name: `${view} view`, exact: true }).click();
+    for (const group of await workGroups.all()) {
+      assert.equal(await group.locator('summary').getByText('In library', { exact: true }).count(), 1);
+      if (await group.getAttribute('open') === null) await group.locator('summary').click();
+    }
+    assert.equal(await workGroups.first().getByText('Owned', { exact: true }).count(), 1);
+    assert.equal(await workGroups.last().getByText('Owned', { exact: true }).count(), 0,
+      'ABS recording absent from catalog does not create an owned child');
+    assert.equal(await page.locator('summary').count(), 2, 'unowned singleton stays available');
+    const buttons = page.getByRole('button', { name: /^Get releases for/ });
+    assert.equal(await buttons.count(), 4);
+    const identities = [];
+    for (const button of await buttons.all()) {
+      await button.click();
+      identities.push(JSON.parse(await page.getByTestId('action').textContent()).edition_context.provider_id);
+    }
+    assert.deepEqual(identities, ['primal-1-owned', 'primal-1-available', 'primal-2-available', 'primal-3-available']);
+    assert(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth));
+    await page.screenshot({ path: `${out}/work-${view}-${width}.png`, fullPage: true, animations: 'disabled' });
+  }
+  assert.deepEqual(errors, []);
+  console.log('PASS: Primal Hunter work badges, mixed ownership, absent recording, unowned/single results and exact Get in grid/list/mobile');
 } catch (error) {
   await page.screenshot({ path: `${out}/failure.png`, fullPage: true, animations: 'disabled' });
   throw error;

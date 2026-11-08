@@ -66,10 +66,14 @@ class TestSelfNotificationPreferencesTestAction:
             sess["db_user_id"] = user["id"]
             sess["is_admin"] = False
 
-        with patch(
-            "shelfmark.config.notifications_settings.send_test_notification",
-            return_value={"success": True, "message": "ok"},
-        ) as mock_send:
+        with (
+            patch(
+                "shelfmark.config.notifications_settings.send_test_notification",
+                return_value={"success": True, "message": "ok"},
+            ) as mock_send,
+            # This dispatch test must not resolve its synthetic routes on the network.
+            patch("shelfmark.core.notifications._host_is_public", return_value=True),
+        ):
             resp = client.post(
                 "/api/users/me/notification-preferences/test",
                 json={

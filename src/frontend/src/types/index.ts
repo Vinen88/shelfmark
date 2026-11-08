@@ -33,6 +33,7 @@ export interface Book {
   added_time?: number; // Timestamp when added to queue
   content_type?: string; // "ebook", "audiobook", or related book subtype
   library?: LibraryOwnership; // "already in your library" flags from the library check
+  work_owned?: boolean; // Display-only literary work ownership; never recording eligibility.
   source?: string; // Release source handler (e.g., "direct_download", "prowlarr")
   source_display_name?: string; // Human-readable source name (e.g., "Direct Download")
   // Metadata provider fields (used in universal search mode)

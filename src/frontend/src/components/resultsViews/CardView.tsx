@@ -100,7 +100,12 @@ export const CardView = ({
               #{book.series_position}
             </div>
           )}
-          <LibraryBadge library={book.library} overlay className="absolute top-2 right-2 z-10" />
+          <LibraryBadge
+            edition={book.provider === 'edition_metadata'}
+            library={book.library}
+            overlay
+            className="absolute top-2 right-2 z-10"
+          />
           {book.preview && !imageError ? (
             <>
               {!imageLoaded && (
