@@ -42,6 +42,10 @@ export const bookFromRequestData = (bookData: Record<string, unknown> | null | u
     source: toOptionalText(row.source),
     provider: toOptionalText(row.provider),
     provider_id: providerId,
+    download_intent: row.download_intent === 'work' ? 'work' : undefined,
+    edition_candidate_ids: Array.isArray(row.edition_candidate_ids)
+      ? row.edition_candidate_ids.filter((value): value is string => typeof value === 'string')
+      : undefined,
     preview: toOptionalText(row.preview),
     year: toOptionalText(row.year),
     series_name: toOptionalText(row.series_name),

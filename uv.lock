@@ -847,6 +847,15 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/28/fa/b2ba8229b9381e8f6381c1dcae6f4159a7f72349e414ed19cfbbd1817173/MouseInfo-0.1.3.tar.gz", hash = "sha256:2c62fb8885062b8e520a3cce0a297c657adcc08c60952eb05bc8256ef6f7f6e7", size = 10850, upload-time = "2020-03-27T21:20:10.136Z" }
 
 [[package]]
+name = "mutagen"
+version = "1.48.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/df/70/1675da133ea92227da41bf5b24e1c66be597ff736a1533ade41da986852f/mutagen-1.48.1.tar.gz", hash = "sha256:8f95637ab9f6f305cec6bd1294e197debe207998e3e068596563c74f86b0a173", size = 1276978, upload-time = "2026-06-25T09:47:32.443Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/47/d8/a29e4e3991765e7ce4ed1f7e4074fe1ba9da03e0048639734de60f9cadb9/mutagen-1.48.1-py3-none-any.whl", hash = "sha256:4f077fe87d3fc7fba259aa63d8c026b18382ca6a42ef37c61e16f1b1b5b82fe7", size = 195706, upload-time = "2026-06-25T09:47:30.296Z" },
+]
+
+[[package]]
 name = "mycdp"
 version = "1.4.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1563,6 +1572,7 @@ dependencies = [
     { name = "gunicorn" },
     { name = "httpx", extra = ["http2"] },
     { name = "joserfc" },
+    { name = "mutagen" },
     { name = "psutil" },
     { name = "publicsuffixlist" },
     { name = "python-socketio" },
@@ -1608,6 +1618,7 @@ requires-dist = [
     { name = "gunicorn" },
     { name = "httpx", extras = ["http2"], specifier = ">=0.28.1" },
     { name = "joserfc", specifier = ">=1.6.8" },
+    { name = "mutagen", specifier = ">=1.47,<2" },
     { name = "psutil" },
     { name = "publicsuffixlist", specifier = ">=1.1.2.20261029" },
     { name = "pyautogui", marker = "extra == 'browser'" },

@@ -154,6 +154,34 @@ class AbsMetadataExport:
     warnings: tuple[str, ...]
 
 
+def convert_work(
+    snapshot: EditionSnapshot, import_id: str, part: tuple[int, int | None] | None = None
+) -> AbsMetadataExport:
+    """Literary facts only. The requested recording is not evidence about the audio."""
+    from shelfmark.metadata_providers.editions.presentation import work_presentation
+
+    edition = snapshot.edition
+    title = work_presentation(edition)[1]
+    if part:
+        title += f" - Part {part[0]}" + (f" of {part[1]}" if part[1] else "")
+    metadata: dict[str, object] = {"title": title, "authors": list(edition.authors)}
+    if edition.series_name:
+        suffix = f" #{edition.series_position:g}" if edition.series_position is not None else ""
+        metadata["series"] = [edition.series_name + suffix]
+    _validate_export(metadata, ExportPolicy())
+    provenance = {
+        "schema_version": 2,
+        "identification": "work",
+        "import_id": import_id,
+        "work": metadata,
+    }
+    return AbsMetadataExport(
+        json.dumps(metadata, ensure_ascii=False, sort_keys=True),
+        json.dumps(provenance, ensure_ascii=False, sort_keys=True),
+        ("Recording identity unresolved; literary metadata only",),
+    )
+
+
 def convert_snapshot(
     snapshot: EditionSnapshot,
     policy: ExportPolicy = ExportPolicy(),  # noqa: B008 -- Immutable frozen dataclass default.

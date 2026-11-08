@@ -259,6 +259,33 @@ class HandoffTests(unittest.TestCase):
         assert context is not None
         self.assertEqual(context.snapshot.edition.part_number, 2)
 
+    def test_work_request_approval_keeps_native_associations_and_explicit_intent(self) -> None:
+        db = self.database()
+        row = self.request(db, 1)
+        stored = db.get_request(cast("int", row["id"]))
+        assert stored is not None
+        data = dict(stored["book_data"])
+        data.update(
+            download_intent="work",
+            edition_candidate_ids=[book.provider_id for book in self.books.values()],
+        )
+        db.update_request(cast("int", row["id"]), book_data=data)
+        release = self.payload(1)
+        release.pop("edition_context")
+        result = requests_service.fulfil_request(
+            db,
+            request_id=cast("int", row["id"]),
+            admin_user_id=self.admin_id,
+            queue_release=orchestrator.queue_release,
+            release_data=release,
+        )
+        task = self.task(release)
+        context = context_from_task(task)
+        assert context is not None
+        self.assertTrue(context.work)
+        self.assertEqual((task.request_id, task.user_id), (row["id"], row["user_id"]))
+        self.assertEqual(result["status"], "fulfilled")
+
     def test_conflicting_approval_rejected_before_native_claim(self) -> None:
         db = self.database()
         row = self.request(db, 1)

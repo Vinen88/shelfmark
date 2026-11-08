@@ -1,9 +1,15 @@
 # 📚 Shelfmark: Book Search & Request Tool
 
-This private fork includes native audiobook edition metadata, exact recording Get
-handoff, recording ownership, ABS metadata publication and automatic scan notification.
+This private fork searches for literary books first, with one main tile per work.
+**Get book** opens the native release list without selecting a recording;
+**View editions** reveals every returned catalog record with **Get this edition**.
+Local audio tags are inspected before metadata publication. Verified recordings get
+their catalog metadata; unidentified recordings get literary metadata without invented
+ASINs, ISBNs or cast credits. Conflicting downloads remain available for review.
+Work and recording ownership stay independent in Audiobookshelf.
 Libex, AudiobookDB and Audnexus retain their existing source opt-ins and authorization.
-The frontend supports grouped recordings, series navigation and language filtering.
+The frontend supports grid/list/compact/mobile layouts, series navigation and language
+filtering. See [book-first downloads and identification](docs/BOOK_FIRST.md).
 
 From this directory, run `python scripts/manage.py deploy` on Windows or
 `python3 scripts/manage.py deploy` on Linux (host Python 3.10+). It builds with the

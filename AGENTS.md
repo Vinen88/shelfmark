@@ -12,6 +12,21 @@ Never collapse literary works into recording identities or combine GraphicAudio 
 Keep exact source/ID-bound snapshots. Do not retag audio or change hardlinked bytes.
 ABS manages artwork. Optional catalog sources require their existing authorized access.
 
+Book-first presentation groups normalized literary title/full authors, with explicit
+series/position conflicts kept separate. Catalog work IDs are evidence, not display
+group keys. Keep every original child recording and its exact ownership/selection.
+Get book is an explicit work intention in native output_args (frozen context v2);
+Get this edition retains exact handoff (v1). Requests/approvals must preserve intent.
+Use the existing bounded metadata cache for discovered snapshots; namespace by source
+settings. Never perform catalog/tracker lookups during post-download identification.
+`download/outputs/audio_identification.py` reads Mutagen headers/tags only. Before
+publishing sidecars, return exact recording, unknown recording, or conflict. Never
+publish a selected ASIN/ISBN merely because it was selected. Unknown imports use
+literary metadata and unresolved provenance; conflicts retain files with a useful error.
+Keep existing collision/inventory/partial recovery code; no extra publication ledger.
+Ownership comes from the accessible native ABS index, not queue/scan acknowledgement.
+Completion triggers bounded batched UI ownership refresh, not a per-book polling service.
+
 ## MyAnonamouse — Restricted External Service
 
 - Never contact live MAM, directly or indirectly through production Prowlarr, during

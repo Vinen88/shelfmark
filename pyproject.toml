@@ -19,6 +19,7 @@ dependencies = [
     "psutil",
     "emoji",
     "rarfile",
+    "mutagen>=1.47,<2",
     "qbittorrent-api>=2026.10.1",
     "transmission-rpc",
     "authlib>=1.9.2,<1.10",

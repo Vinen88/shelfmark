@@ -4,7 +4,7 @@ import json
 import re
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Protocol, cast
+from typing import TYPE_CHECKING, Protocol, cast
 
 from shelfmark.metadata_providers.editions.catalog_types import AggregatedEdition, SourceError
 from shelfmark.metadata_providers.editions.identity import EditionIdentity
@@ -16,10 +16,38 @@ from shelfmark.metadata_providers.editions.multisource import (
 from shelfmark.metadata_providers.editions.search_ranking import ADAPTATION, PART, language
 from shelfmark.metadata_providers.editions.snapshot import EditionSnapshot
 
+if TYPE_CHECKING:
+    from shelfmark.metadata_providers import BookMetadata
+
 PROVIDER = "edition_metadata"
 MAX_CONTEXT_BYTES = 256 * 1024
 MAX_IDENTIFIER_LENGTH = 4096
 Resolver = Callable[[EditionIdentity], EditionSnapshot | None]
+
+
+def work_metadata(book: BookMetadata) -> BookMetadata:
+    """Native release-search inputs without a selected recording or ISBN."""
+    from dataclasses import replace
+
+    from shelfmark.metadata_providers.editions.search_ranking import literary_title, words
+
+    title = getattr(book, "edition_work_title", None) or literary_title(book.title)
+    search = title
+    if words(title) == words(book.series_name or "") and book.series_position is not None:
+        search += f" Book {book.series_position:g}"
+    return replace(
+        book,
+        title=title,
+        search_title=search,
+        isbn_10=None,
+        isbn_13=None,
+        publisher=None,
+        publish_year=None,
+        subtitle=None,
+        display_fields=[],
+    )
+
+
 INFORMATIONAL_WARNINGS = frozenset(
     {
         "Historical delisting report; current availability unverified",
@@ -56,11 +84,11 @@ def _text(value: object, field: str) -> str:
     return value
 
 
-def _encode(value: object) -> str:
+def _encode(value: object, limit: int = MAX_CONTEXT_BYTES) -> str:
     text = json.dumps(
         value, ensure_ascii=False, sort_keys=True, separators=(",", ":"), allow_nan=False
     )
-    if len(text.encode("utf-8")) > MAX_CONTEXT_BYTES:
+    if len(text.encode("utf-8")) > limit:
         raise ValueError("Edition context exceeds 256 KiB; metadata was not truncated")
     return text
 
@@ -103,6 +131,8 @@ class FrozenEditionContext:
     snapshot_json: str
     source: str
     source_id: str
+    work: bool = False
+    candidates: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         _text(self.source, "source")
@@ -117,6 +147,8 @@ class FrozenEditionContext:
             raise ValueError("Snapshot edition identity is inconsistent")
         # Canonicalize only through the lossless existing serializer.
         object.__setattr__(self, "snapshot_json", snapshot.to_json())
+        for candidate in self.candidates:
+            EditionSnapshot.from_json(candidate)
         self.to_json()
 
     @property
@@ -125,15 +157,18 @@ class FrozenEditionContext:
 
     def to_json(self) -> str:
         snapshot = self.snapshot
-        return _encode(
-            {
-                "version": 1,
-                "provider": snapshot.identity.provider,
-                "provider_id": snapshot.identity.provider_id,
-                "release": {"source": self.source, "source_id": self.source_id},
-                "snapshot": snapshot.to_dict(),
-            }
-        )
+        data: dict[str, object] = {
+            "version": 1,
+            "provider": snapshot.identity.provider,
+            "provider_id": snapshot.identity.provider_id,
+            "release": {"source": self.source, "source_id": self.source_id},
+            "snapshot": snapshot.to_dict(),
+        }
+        if self.work:
+            data.update(
+                version=2, intent="work", candidates=[json.loads(raw) for raw in self.candidates]
+            )
+        return _encode(data, 4 * 1024 * 1024 if self.work else MAX_CONTEXT_BYTES)
 
     def validate_release(self, source: str, source_id: str) -> None:
         if (source, source_id) != (self.source, self.source_id):
@@ -141,7 +176,7 @@ class FrozenEditionContext:
 
     @classmethod
     def from_json(cls, text: str) -> FrozenEditionContext:
-        if len(text.encode("utf-8")) > MAX_CONTEXT_BYTES:
+        if len(text.encode("utf-8")) > 4 * 1024 * 1024:
             raise ValueError("Edition context exceeds 256 KiB")
 
         def unique(pairs: list[tuple[str, object]]) -> dict[str, object]:
@@ -153,10 +188,14 @@ class FrozenEditionContext:
             return data
 
         data = _object(json.loads(text, object_pairs_hook=unique))
+        work = data.get("version") == 2 and data.get("intent") == "work"
+        fields = {"version", "provider", "provider_id", "release", "snapshot"}
+        if work:
+            fields |= {"intent", "candidates"}
         if (
-            set(data) != {"version", "provider", "provider_id", "release", "snapshot"}
+            set(data) != fields
             or type(data["version"]) is not int
-            or data["version"] != 1
+            or (not work and data["version"] != 1)
         ):
             raise ValueError("Invalid frozen edition context fields or version")
         release = _object(data["release"])
@@ -167,10 +206,15 @@ class FrozenEditionContext:
             _text(data["provider"], "provider"), _text(data["provider_id"], "provider_id")
         ):
             raise ValueError("Edition context and snapshot identities differ")
+        candidates = data.get("candidates", [])
+        if not isinstance(candidates, list) or len(candidates) > 100:
+            raise ValueError("Invalid work candidates")
         return cls(
             snapshot.to_json(),
             _text(release["source"], "source"),
             _text(release["source_id"], "source_id"),
+            work,
+            tuple(EditionSnapshot.from_dict(raw).to_json() for raw in candidates),
         )
 
 
@@ -197,10 +241,28 @@ def bind_request_locator(book_data: object, release_data: object) -> dict[str, o
     book = _object(book_data)
     release = _object(release_data)
     if book.get("provider") != PROVIDER:
+        if "work_context" in release:
+            raise ValueError("Work download conflicts with the requested metadata provider")
         raw = release.get("edition_context")
         if isinstance(raw, dict) and raw.get("provider") == PROVIDER:
             raise ValueError("Release edition conflicts with the requested metadata provider")
         return release
+    if book.get("download_intent") == "work":
+        if "edition_context" in release:
+            raise ValueError("An exact edition conflicts with a Get book request")
+        if "work_context" in release and _object(release["work_context"]).get(
+            "provider_id"
+        ) != book.get("provider_id"):
+            raise ValueError("Release work conflicts with the stored request")
+        return {
+            **release,
+            "work_context": {
+                "provider_id": book.get("provider_id"),
+                "candidate_ids": book.get("edition_candidate_ids", []),
+            },
+        }
+    if "work_context" in release:
+        raise ValueError("A work download conflicts with an exact edition request")
     incoming = (
         EditionLocator.from_dict(release["edition_context"])
         if "edition_context" in release
@@ -361,6 +423,62 @@ def _validate_selected_recording(snapshot: EditionSnapshot) -> None:
 def resolve_release(
     release_data: dict[str, object], resolver: Resolver = trusted_snapshot
 ) -> tuple[dict[str, object], FrozenEditionContext | None]:
+    if "work_context" in release_data:
+        if "edition_context" in release_data or release_data.get("content_type") != "audiobook":
+            raise ValueError("Choose either Get book or Get this edition for an audiobook")
+        raw_work = _object(release_data["work_context"])
+        if set(raw_work) != {"provider_id", "candidate_ids"}:
+            raise ValueError("Invalid work context")
+        identity = EditionIdentity(PROVIDER, _text(raw_work["provider_id"], "provider_id"))
+        snapshot = resolver(identity)
+        if snapshot is None or snapshot.identity != identity:
+            raise ValueError("Requested work metadata is unavailable")
+        if isinstance(snapshot.edition, AggregatedEdition) and set(
+            snapshot.edition.provenance.conflicts
+        ) & {"authors", "series_name", "series_position"}:
+            raise ValueError(
+                "Catalog author/series evidence conflicts; review the work or select an unambiguous edition"
+            )
+        ids = raw_work["candidate_ids"]
+        if (
+            not isinstance(ids, list)
+            or len(ids) > 100
+            or any(not isinstance(value, str) for value in ids)
+        ):
+            raise ValueError("Invalid work candidates")
+        from shelfmark.download.outputs.audio_identification import same_work
+        from shelfmark.metadata_providers import get_provider, get_provider_kwargs
+        from shelfmark.metadata_providers.editions.provider import EditionMetadataProvider
+
+        provider = get_provider(PROVIDER, **get_provider_kwargs(PROVIDER))
+        candidates = [snapshot]
+        if isinstance(provider, EditionMetadataProvider):
+            for book_id in dict.fromkeys(ids):
+                candidate = provider.cached_snapshot(book_id)
+                if candidate and candidate.identity != identity:
+                    if not all(same_work(candidate, peer) for peer in candidates):
+                        raise ValueError("Catalog candidates contain conflicting literary works")
+                    candidates.append(candidate)
+        context = FrozenEditionContext(
+            snapshot.to_json(),
+            _text(release_data.get("source"), "source"),
+            _text(release_data.get("source_id"), "source_id"),
+            True,
+            tuple(c.to_json() for c in candidates),
+        )
+        from shelfmark.metadata_providers.editions.presentation import work_presentation
+
+        _, title, _ = work_presentation(snapshot.edition)
+        return {
+            **release_data,
+            "title": title,
+            "author": ", ".join(snapshot.edition.authors),
+            "series_name": snapshot.edition.series_name,
+            "series_position": snapshot.edition.series_position,
+            "year": None,
+            "subtitle": None,
+            "narrator": None,
+        }, context
     if "edition_context" not in release_data:
         return release_data, None
     raw = release_data["edition_context"]

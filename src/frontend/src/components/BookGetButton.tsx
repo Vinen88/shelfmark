@@ -109,6 +109,8 @@ export const BookGetButton = ({
     if (buttonState?.state === 'locating') return 'Locating files';
     if (buttonState?.state === 'resolving') return 'Resolving';
     if (buttonState?.state === 'queued') return 'Queued';
+    if (book.provider === 'edition_metadata' && (!buttonState?.text || buttonState.text === 'Get'))
+      return book.download_intent === 'work' ? 'Get book' : 'Get this edition';
     if (buttonState?.state === 'download' && buttonState.text) return buttonState.text;
     return 'Get';
   };

@@ -34,6 +34,9 @@ export interface Book {
   content_type?: string; // "ebook", "audiobook", or related book subtype
   library?: LibraryOwnership; // "already in your library" flags from the library check
   work_owned?: boolean; // Display-only literary work ownership; never recording eligibility.
+  download_intent?: 'work';
+  edition_candidate_ids?: string[];
+  edition_work_conflicts?: string[];
   source?: string; // Release source handler (e.g., "direct_download", "prowlarr")
   source_display_name?: string; // Human-readable source name (e.g., "Direct Download")
   // Metadata provider fields (used in universal search mode)

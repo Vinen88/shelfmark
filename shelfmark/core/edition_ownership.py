@@ -61,6 +61,7 @@ class EditionBookMetadata(BookMetadata):
     edition_work_id: str | None = None
     edition_work_title: str | None = None
     edition_series_name: str | None = None
+    edition_work_conflicts: list[str] | None = None
 
     # Deliberately not a dataclass field: native asdict/API/request JSON stays
     # unchanged. dataclasses.replace drops this context and thus fails closed.

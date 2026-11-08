@@ -1,5 +1,7 @@
 """Native audiobook recording metadata provider."""
 
+import hashlib
+import json
 from dataclasses import replace
 from typing import TYPE_CHECKING
 
@@ -98,7 +100,19 @@ def _to_shelfmark(edition: AudiobookEdition) -> BookMetadata:
         # They are not catalog descriptions or ordinary result-card content.
 
     work_id, work_title, series_title = work_presentation(edition)
+    work_conflicts = (
+        sorted(set(edition.provenance.conflicts) & {"series_name", "series_position", "authors"})
+        if isinstance(edition, AggregatedEdition)
+        else []
+    )
+    if work_conflicts:
+        display_fields.append(
+            DisplayField(
+                label="Work evidence", value="Conflicting catalog " + ", ".join(work_conflicts)
+            )
+        )
     result = EditionBookMetadata(
+        edition_work_conflicts=work_conflicts or None,
         edition_work_id=work_id,
         edition_work_title=work_title,
         edition_series_name=series_title,
@@ -143,6 +157,28 @@ class EditionMetadataProvider(MetadataProvider):
         from shelfmark.metadata_providers.editions.multisource_config import configured_backend
 
         self.backend: EditionBackend = backend if backend is not None else configured_backend()
+        from shelfmark.core.config import config
+        from shelfmark.metadata_providers.editions.multisource_config import DEFAULTS
+
+        scope = (
+            str(id(backend))
+            if backend
+            else json.dumps(
+                {key: config.get(key, default) for key, default in DEFAULTS.items()}, sort_keys=True
+            )
+        )
+        self._snapshot_scope = hashlib.sha256(scope.encode()).hexdigest()
+
+    def _snapshot_key(self, book_id: str) -> str:
+        return f"edition-snapshot:{self._snapshot_scope}:{book_id}"
+
+    def _remember(self, snapshot: EditionSnapshot) -> EditionSnapshot:
+        from shelfmark.core.cache import get_metadata_cache
+
+        get_metadata_cache().set(
+            self._snapshot_key(snapshot.identity.provider_id), snapshot.to_json(), 3600
+        )
+        return snapshot
 
     def is_available(self) -> bool:
         return self.backend.is_available()
@@ -181,7 +217,7 @@ class EditionMetadataProvider(MetadataProvider):
             for edition in editions
         )
         validate_unique_identities(snapshots)
-        return [_to_shelfmark(snapshot.edition) for snapshot in snapshots]
+        return [_to_shelfmark(self._remember(snapshot).edition) for snapshot in snapshots]
 
     def get_book(self, book_id: str) -> BookMetadata | None:
         snapshot = self.get_snapshot(book_id)
@@ -189,6 +225,9 @@ class EditionMetadataProvider(MetadataProvider):
 
     def get_snapshot(self, book_id: str) -> EditionSnapshot | None:
         """Resolve the selected recording for trusted handoff; never saves settings/files."""
+        cached = self.cached_snapshot(book_id)
+        if cached:
+            return cached
         identity = split_provider_id(book_id)
         if identity is None:
             return None
@@ -197,7 +236,14 @@ class EditionMetadataProvider(MetadataProvider):
             return None
         if found.provider_id != book_id:
             raise ValueError("Backend returned a different edition than requested")
-        return EditionSnapshot(EditionIdentity(self.name, book_id), found)
+        return self._remember(EditionSnapshot(EditionIdentity(self.name, book_id), found))
+
+    def cached_snapshot(self, book_id: str) -> EditionSnapshot | None:
+        """Previously discovered facts only; identification never performs lookups."""
+        from shelfmark.core.cache import get_metadata_cache
+
+        raw = get_metadata_cache().get(self._snapshot_key(book_id))
+        return EditionSnapshot.from_json(raw) if isinstance(raw, str) else None
 
     def search_by_isbn(self, isbn: str) -> BookMetadata | None:
         found = self.backend.by_isbn(isbn)

@@ -1453,7 +1453,11 @@ def auto_download_request(
     from shelfmark.core import library_index
 
     try:
-        in_library = library_index.is_in_library(book, content_type, strict=True)
+        if book_data.get("download_intent") == "work" and book.provider == "edition_metadata":
+            library_index.require_ready(content_type)
+            in_library = bool(library_index.work_owned(book))
+        else:
+            in_library = library_index.is_in_library(book, content_type, strict=True)
     except library_index.LibraryUnavailableError as exc:
         # Unattended: do not download blind. The request stays pending for the next cycle.
         logger.warning(
@@ -1487,6 +1491,10 @@ def auto_download_request(
         )
         return AutoDownloadOutcome(request_id, "in_library", "already in library; closed")
 
+    if book_data.get("download_intent") == "work" and book.provider == "edition_metadata":
+        from shelfmark.core.edition_handoff import work_metadata
+
+        book = work_metadata(book)
     audiobook_formats = _audiobook_formats()
     ebook_formats = _ebook_formats()
     languages = _wanted_languages(coerce_int(request_row.get("user_id"), 0) or None)

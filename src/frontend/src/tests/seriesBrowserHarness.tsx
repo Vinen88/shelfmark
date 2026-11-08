@@ -6,12 +6,13 @@ import { createRoot } from 'react-dom/client';
 import { DetailsModal } from '../components/DetailsModal';
 import { ResultsSection } from '../components/ResultsSection';
 import { SearchModeProvider } from '../contexts/SearchModeContext';
+import { useStatusChangeNotifications } from '../hooks/app/useStatusChangeNotifications';
 import { useMountEffect } from '../hooks/useMountEffect';
-import { searchMetadata } from '../services/api';
-import type { Book, ButtonStateInfo } from '../types';
+import { searchMetadata, refreshEditionOwnership } from '../services/api';
+import type { Book, ButtonStateInfo, StatusData } from '../types';
 import { buildReleaseDownloadPayload } from '../utils/releasePayload';
 import { catalogBooks } from './catalogFixtures';
-import { seriesBooks, workBooks } from './seriesFixtures';
+import { seriesBooks, workBooks, lastBattleBooks } from './seriesFixtures';
 
 import '../styles.css';
 
@@ -24,6 +25,7 @@ function Harness() {
   const [books, setBooks] = useState(() => {
     const params = new URLSearchParams(location.search);
     if (params.has('catalog_fixture')) return catalogBooks;
+    if (params.has('last_battle_fixture')) return lastBattleBooks;
     return params.has('work_fixture') ? workBooks : seriesBooks;
   });
   useMountEffect(() => {
@@ -34,6 +36,24 @@ function Harness() {
     }
   });
   const [action, setAction] = useState('');
+  const [status, setStatus] = useState<StatusData>({ queued: {} });
+  useStatusChangeNotifications({
+    currentStatus: status,
+    config: null,
+    showToast: () => {},
+    openDownloadsSidebar: () => {},
+    bookToReleaseMap: {},
+    markBookCompleted: () => {},
+    refreshOwnership: () => {
+      void refreshEditionOwnership(
+        books.flatMap((child) => (child.provider_id ? [child.provider_id] : [])),
+      ).then(({ books: holdings }) => {
+        setBooks((current) =>
+          current.map((child) => Object.assign({}, child, holdings[child.provider_id || ''] || {})),
+        );
+      });
+    },
+  });
   const get = async (child: Book) =>
     setAction(
       JSON.stringify(
@@ -53,6 +73,25 @@ function Harness() {
     <SearchModeProvider searchMode="universal">
       <main className="mx-auto max-w-7xl p-5">
         <h1 className="mb-5 text-2xl font-bold">Audiobook search: {query}</h1>
+        <button
+          type="button"
+          className="hidden"
+          data-testid="complete"
+          onClick={() =>
+            setStatus({
+              complete: {
+                fixture: {
+                  id: 'fixture',
+                  title: query,
+                  author: 'Fixture',
+                  content_type: 'audiobook',
+                },
+              },
+            })
+          }
+        >
+          Complete synthetic import
+        </button>
         <ResultsSection
           books={books}
           visible

@@ -1,5 +1,24 @@
 import type { Book } from '../types';
 
+export const lastBattleBooks: Book[] = ['ca', 'us', 'db', 'nexus'].map((source, index) => ({
+  id: `edition_metadata:last-battle-${source}`,
+  provider: 'edition_metadata',
+  provider_id: `last-battle-${source}`,
+  title: 'The Last Battle',
+  edition_work_title: 'The Last Battle',
+  author: 'C. S. Lewis',
+  authors: ['C. S. Lewis'],
+  edition_work_id: index ? `source-work-${source}` : undefined,
+  series_name: 'The Chronicles of Narnia',
+  edition_series_name: 'The Chronicles of Narnia',
+  series_position: 7,
+  publisher: `Fixture publisher ${source}`,
+  year: String(2000 + index),
+  work_owned: true,
+  content_type: 'audiobook',
+  display_fields: [{ label: 'Narrators', value: `Fixture narrator ${source}` }],
+}));
+
 export const seriesBooks: Book[] = [4, 6]
   .flatMap((position) =>
     ['A', 'B'].map<Book>((narrator, index) => {

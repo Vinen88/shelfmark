@@ -49,7 +49,7 @@ try {
   }
   await page.getByTestId('rerender').click();
   assert.equal(searches.length, 0, 'Grouping, views and parent renders do not search releases');
-  await page.getByRole('button', { name: /^Get releases for/ }).first().click();
+  await page.getByRole('button', { name: /^Get this edition releases for/ }).first().click();
   await page.getByText(release.title, { exact: true }).first().waitFor();
   assert.equal(await page.getByText(release.title, { exact: true }).filter({ visible: true }).count(), 1);
   assert.equal(await page.getByText('Unsupported FLAC fixture', { exact: true }).count(), 0);
@@ -64,7 +64,7 @@ try {
   await page.waitForTimeout(150);
   assert.equal(searches.length, 1, 'Display metadata and parent renders preserve the search session');
   await page.keyboard.press('Escape');
-  await page.getByRole('button', { name: /^Get releases for/ }).first().click();
+  await page.getByRole('button', { name: /^Get this edition releases for/ }).first().click();
   await page.getByText(release.title, { exact: true }).first().waitFor();
   assert.equal(searches.length, 1, 'Reopening a completed release search uses native UI cache');
   await page.waitForTimeout(400);
@@ -86,10 +86,10 @@ try {
   assert.equal(payload.content_type, 'audiobook');
   await page.keyboard.press('Escape');
   const childRequest = page.waitForRequest(request => request.url().includes('/api/releases?') && request.url().includes('fixture-part-2'));
-  await page.getByRole('button', { name: /^Get releases for/ }).nth(1).click();
+  await page.getByRole('button', { name: /^Get this edition releases for/ }).nth(1).click();
   await childRequest;
   await page.keyboard.press('Escape');
-  await page.getByRole('button', { name: /^Get releases for/ }).first().click();
+  await page.getByRole('button', { name: /^Get this edition releases for/ }).first().click();
   await page.getByText(release.title, { exact: true }).first().waitFor();
   assert.equal(searches.length, 4, 'Switching back uses part 1 cache while part 2 is pending');
   delayedSearch();

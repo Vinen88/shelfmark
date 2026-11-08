@@ -44,6 +44,7 @@ export const CompactView = ({
   const [isHovered, setIsHovered] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const targetProvider = book.provider;
+  const detailsText = book.download_intent === 'work' ? 'View editions' : 'Details';
   const targetBookId = book.provider_id;
   const microphoneField = cardDisplayFields(book).find((field) => field.icon === 'microphone');
   let zIndex: number | undefined;
@@ -101,7 +102,7 @@ export const CompactView = ({
             </div>
           )}
           <LibraryBadge
-            edition={book.provider === 'edition_metadata'}
+            edition={book.provider === 'edition_metadata' && book.download_intent !== 'work'}
             library={book.library}
             overlay
             className="absolute top-2 right-2 z-10"
@@ -169,7 +170,7 @@ export const CompactView = ({
                 void handleDetails(book.id);
               }}
               disabled={isLoadingDetails}
-              aria-label="Book details"
+              aria-label={book.download_intent === 'work' ? 'View editions' : 'Book details'}
             >
               {isLoadingDetails ? (
                 <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
@@ -198,7 +199,7 @@ export const CompactView = ({
           </h3>
           <p className="min-w-0 truncate text-xs opacity-80">{book.author || 'Unknown author'}</p>
           <div className="text-xs opacity-70">
-            <span>{book.year || '-'}</span>
+            <span>{book.year || (book.download_intent === 'work' ? '' : '-')}</span>
           </div>
         </div>
 
@@ -253,7 +254,7 @@ export const CompactView = ({
                 disabled={isLoadingDetails}
               >
                 <span className="details-button-text">
-                  {isLoadingDetails ? 'Loading' : 'Details'}
+                  {isLoadingDetails ? 'Loading' : detailsText}
                 </span>
                 {isLoadingDetails && (
                   <div className="h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent" />

@@ -47,6 +47,7 @@ import { LoginPage } from './pages/LoginPage';
 import {
   getSourceRecordInfo,
   getMetadataBookInfo,
+  refreshEditionOwnership,
   downloadRelease,
   cancelDownload,
   retryDownload,
@@ -88,6 +89,7 @@ import { bookSupportsTargets } from './utils/bookTargetLoader';
 import { buildSearchQuery } from './utils/buildSearchQuery';
 import { wasDownloadQueuedAfterResponseError } from './utils/downloadRecovery';
 import { getDynamicOptionGroup } from './utils/dynamicFieldOptions';
+import { editionButtonState } from './utils/editionPresentation';
 import { resolveDefaultLanguageCodes } from './utils/languageFilters';
 import { getConfiguredMetadataProviderForContentType } from './utils/metadataProviders';
 import { getEffectiveMetadataSort } from './utils/metadataSort';
@@ -788,6 +790,27 @@ function App() {
     openDownloadsSidebar,
     bookToReleaseMap,
     markBookCompleted,
+    refreshOwnership: () => {
+      const ids = books.flatMap((book) =>
+        book.provider === 'edition_metadata' && book.provider_id ? [book.provider_id] : [],
+      );
+      if (!ids.length) return;
+      void refreshEditionOwnership(ids)
+        .then(({ books: holdings }) => {
+          setBooks((current) =>
+            current.map((book) => {
+              const owned =
+                book.provider === 'edition_metadata' && book.provider_id
+                  ? holdings[book.provider_id]
+                  : undefined;
+              return owned ? Object.assign({}, book, owned) : book;
+            }),
+          );
+        })
+        .catch(() => {
+          /* Native stale holdings remain visible when ABS is unavailable. */
+        });
+    },
   });
 
   // Load config function
@@ -1936,7 +1959,9 @@ function App() {
 
   const getUniversalActionButtonState = useCallback(
     (bookId: string): ButtonStateInfo => {
-      const baseState = getUniversalButtonState(bookId);
+      const original = books.find((book) => book.id === bookId);
+      const rawState = getUniversalButtonState(bookId);
+      const baseState = original ? editionButtonState(original, rawState) : rawState;
       const trackedReleaseIds = bookToReleaseMap[bookId] || [];
       const allTrackedReleasesDismissed =
         trackedReleaseIds.length > 0 &&
@@ -1956,6 +1981,7 @@ function App() {
     },
     [
       bookToReleaseMap,
+      books,
       getUniversalButtonState,
       getUniversalDefaultPolicyMode,
       isDownloadTaskDismissed,

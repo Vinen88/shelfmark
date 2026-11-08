@@ -34,6 +34,9 @@ export const buildMetadataBookRequestData = (book: Book, contentType: ContentTyp
     content_type: contentType,
     provider: book.provider || 'metadata',
     provider_id: book.provider_id || book.id,
+    ...(book.download_intent === 'work'
+      ? { download_intent: 'work', edition_candidate_ids: book.edition_candidate_ids || [] }
+      : {}),
     year: book.year,
     preview: book.preview,
     series_name: book.series_name,
@@ -76,6 +79,14 @@ export const buildReleaseDataFromMetadataRelease = (
     source: release.source,
     source_id: release.source_id,
     ...(editionContext ? { edition_context: editionContext, release_title: release.title } : {}),
+    ...(book.download_intent === 'work' && book.provider_id
+      ? {
+          work_context: {
+            provider_id: book.provider_id,
+            candidate_ids: book.edition_candidate_ids || [],
+          },
+        }
+      : {}),
     title: book.title || release.title || 'Unknown title',
     author: book.author,
     year: book.year,

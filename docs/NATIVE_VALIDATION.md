@@ -1,5 +1,8 @@
 # Native editions validation and maintenance footprint
 
+For the November 8 book-first changes, see [Book-first downloads](BOOK_FIRST.md).
+The historical measurements below describe the earlier exact-selection baseline.
+
 Validated November 7, 2026. Production was not activated. Results use the fork's
 native build and application code with synthetic data and externally isolated tests.
 

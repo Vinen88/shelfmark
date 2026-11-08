@@ -1,5 +1,9 @@
 # Native editions migration
 
+The current book-first UI and post-download identification contract is documented
+in [Book-first downloads](BOOK_FIRST.md). The migration baseline below predates it;
+selected catalog snapshots alone no longer establish recording metadata for import.
+
 Status: implementation and isolated validation only. Production activation requires
 separate review. No production installation, configuration, database, media or client
 was modified. No commit, push, PR or image publication was performed.

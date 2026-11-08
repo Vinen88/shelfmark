@@ -42,6 +42,7 @@ export const CardView = ({
   const [isHovered, setIsHovered] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const targetProvider = book.provider;
+  const detailsText = book.download_intent === 'work' ? 'View editions' : 'Details';
   const targetBookId = book.provider_id;
   let zIndex: number | undefined;
   if (dropdownOpen) {
@@ -101,7 +102,7 @@ export const CardView = ({
             </div>
           )}
           <LibraryBadge
-            edition={book.provider === 'edition_metadata'}
+            edition={book.provider === 'edition_metadata' && book.download_intent !== 'work'}
             library={book.library}
             overlay
             className="absolute top-2 right-2 z-10"
@@ -168,7 +169,7 @@ export const CardView = ({
               void handleDetails(book.id);
             }}
             disabled={isLoadingDetails}
-            aria-label="Book details"
+            aria-label={book.download_intent === 'work' ? 'View editions' : 'Book details'}
           >
             {isLoadingDetails ? (
               <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
@@ -199,8 +200,12 @@ export const CardView = ({
           </p>
           {searchMode === 'universal' && book.display_fields && book.display_fields.length > 0 ? (
             <div className="flex flex-wrap gap-2 text-xs opacity-70 max-sm:gap-1 max-sm:text-[10px]">
-              <span>{book.year || '-'}</span>
-              <span>•</span>
+              {book.download_intent !== 'work' && (
+                <>
+                  <span>{book.year || '-'}</span>
+                  <span>•</span>
+                </>
+              )}
               <DisplayFieldBadges fields={cardDisplayFields(book)} />
             </div>
           ) : (
@@ -240,7 +245,9 @@ export const CardView = ({
             style={{ borderColor: 'var(--border-muted)' }}
             disabled={isLoadingDetails}
           >
-            <span className="details-button-text">{isLoadingDetails ? 'Loading' : 'Details'}</span>
+            <span className="details-button-text">
+              {isLoadingDetails ? 'Loading' : detailsText}
+            </span>
             <div
               className={`details-spinner h-3 w-3 rounded-full border-2 border-current border-t-transparent ${isLoadingDetails ? '' : 'hidden'}`}
             />

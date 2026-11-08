@@ -5,7 +5,12 @@ export const selectedEditionContext = (
   book: Book,
   contentType: ContentType,
 ): EditionLocator | undefined => {
-  if (contentType !== 'audiobook' || book.provider !== 'edition_metadata') return undefined;
+  if (
+    contentType !== 'audiobook' ||
+    book.provider !== 'edition_metadata' ||
+    book.download_intent === 'work'
+  )
+    return undefined;
   if (!book.provider_id?.trim()) throw new Error('Selected audiobook edition has no metadata ID');
   return { version: 1, provider: book.provider, provider_id: book.provider_id };
 };
@@ -53,6 +58,14 @@ export function buildReleaseDownloadPayload(
   const payload: DownloadReleasePayload = {
     source: release.source,
     source_id: release.source_id,
+    ...(book.download_intent === 'work' && book.provider_id
+      ? {
+          work_context: {
+            provider_id: book.provider_id,
+            candidate_ids: book.edition_candidate_ids || [],
+          },
+        }
+      : {}),
     ...(editionContext ? { edition_context: editionContext, release_title: release.title } : {}),
     title: isManual ? release.title : book.title,
     author: isManual ? releaseAuthor || '' : book.author,

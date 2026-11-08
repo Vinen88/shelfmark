@@ -244,6 +244,39 @@ def register_metadata_routes(
             logger.error_trace(f"Metadata config error: {e}")
             return jsonify({"error": "Could not load the metadata configuration"}), 500
 
+    @app.route("/api/metadata/ownership", methods=["POST"])
+    @login_required
+    def api_metadata_ownership() -> Response | tuple[Response, int]:
+        """Refresh visible cached editions as one native library-index batch."""
+        from shelfmark.core import library_index
+        from shelfmark.metadata_providers import get_provider, get_provider_kwargs
+        from shelfmark.metadata_providers.editions.provider import EditionMetadataProvider
+
+        data = request.get_json(silent=True)
+        ids = data.get("ids") if isinstance(data, dict) else None
+        if (
+            not isinstance(ids, list)
+            or len(ids) > 100
+            or any(not isinstance(value, str) for value in ids)
+        ):
+            return jsonify({"error": "Expected up to 100 cached edition IDs"}), 400
+        provider = get_provider("edition_metadata", **get_provider_kwargs("edition_metadata"))
+        if not isinstance(provider, EditionMetadataProvider) or not provider.is_available():
+            return jsonify({"books": {}})
+        library_index.invalidate("audiobookshelf")
+        result = {}
+        for book_id in dict.fromkeys(ids):
+            snapshot = provider.cached_snapshot(book_id)
+            if snapshot:
+                from shelfmark.metadata_providers.editions.provider import _to_shelfmark
+
+                book = _to_shelfmark(snapshot.edition)
+                result[book_id] = {
+                    "library": library_index.ownership(book) or {},
+                    "work_owned": bool(library_index.work_owned(book)),
+                }
+        return jsonify({"books": result})
+
     @app.route("/api/metadata/search", methods=["GET"])
     @login_required
     def api_metadata_search() -> Response | tuple[Response, int]:

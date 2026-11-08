@@ -30,6 +30,7 @@ export interface MetadataBookData {
   }>;
   // Series info
   edition_work_id?: string;
+  edition_work_conflicts?: string[];
   edition_work_title?: string;
   edition_series_name?: string;
   series_id?: string;
@@ -99,6 +100,7 @@ export function transformMetadataToBook(data: MetadataBookData): Book {
     source_url: data.source_url,
     display_fields: data.display_fields,
     edition_work_id: data.edition_work_id,
+    edition_work_conflicts: data.edition_work_conflicts,
     edition_work_title: data.edition_work_title,
     edition_series_name: data.edition_series_name,
     series_id: data.series_id,

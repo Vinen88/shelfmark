@@ -18,7 +18,8 @@ from shelfmark.core.edition_handoff import (
 from shelfmark.core.edition_ownership import _owned, library_recording, ownership_evidence
 from shelfmark.core.logger import setup_logger
 from shelfmark.download.fs import run_blocking_io
-from shelfmark.download.outputs.abs_metadata import MetadataUrlError, convert_snapshot
+from shelfmark.download.outputs.abs_metadata import MetadataUrlError, convert_snapshot, convert_work
+from shelfmark.download.outputs.audio_identification import identify
 from shelfmark.metadata_providers.editions.snapshot import EditionSnapshot
 
 if TYPE_CHECKING:
@@ -173,11 +174,13 @@ def prepare(
         raise OutputError("Audio transfer was cancelled")
     snapshot = context.snapshot
     try:
-        _validate_selected_recording(snapshot)
+        if not context.work:
+            _validate_selected_recording(snapshot)
     except ValueError:
         raise OutputError("Edition recording identifiers or frozen metadata are invalid") from None
     try:
-        _check_advisory_titles({"release_title": task.retry_release_name}, snapshot)
+        if not context.work:
+            _check_advisory_titles({"release_title": task.retry_release_name}, snapshot)
     except ValueError:
         raise OutputError("Release metadata conflicts with the selected recording") from None
     files = drop_ignored_files(files, task.ignored_files)
@@ -198,8 +201,30 @@ def prepare(
         != 1
     ):
         raise OutputError("Download layout contains multiple books or ambiguous source folders")
+    identification = identify(files, context)
+    if identification.outcome == "conflict":
+        raise OutputError(identification.reason)
+    task.output_args["edition_identification"] = identification.outcome
+    if identification.snapshot is not None:
+        snapshot = identification.snapshot
+        task.output_args["identified_edition"] = snapshot.identity.provider_id
+    import_id = hashlib.sha256(f"{context.source}:{context.source_id}".encode()).hexdigest()
     try:
-        exported = convert_snapshot(snapshot)
+        if identification.outcome == "exact":
+            exported = convert_snapshot(snapshot)
+        else:
+            exported = convert_work(
+                snapshot,
+                import_id,
+                identification.observed.get("recording_part"),
+            )
+        published_metadata = json.loads(exported.metadata_json)
+        # Naming must follow what will actually be published, not the selected recording.
+        task.title = published_metadata["title"]
+        task.author = ", ".join(published_metadata.get("authors", []))
+        task.narrator = ", ".join(published_metadata.get("narrators", [])) or None
+        task.year = published_metadata.get("publishedYear")
+        task.subtitle = published_metadata.get("subtitle")
     except MetadataUrlError:
         raise OutputError("Edition metadata contains an unsupported URL") from None
     except ValueError:
@@ -255,7 +280,13 @@ def prepare(
         ),
         "Edition",
     )
-    stable = hashlib.sha256(snapshot.identity.provider_id.encode()).hexdigest()[:10]
+    if identification.outcome == "work":
+        label = "Unidentified recording"
+    stable = (
+        import_id[:10]
+        if identification.outcome == "work"
+        else hashlib.sha256(snapshot.identity.provider_id.encode()).hexdigest()[:10]
+    )
     stem = sanitize_filename(directory.name, max_length=160)
     label = sanitize_filename(label, max_length=60)
     for attempt in range(100):
@@ -280,13 +311,30 @@ def prepare(
                     _safe_path(path)
                 texts = tuple(path.read_text(encoding="utf-8") for path, _ in sidecars)
                 previous = json.loads(texts[1])
-                old = EditionSnapshot.from_dict(previous["snapshot"])
-                observed, selected = ownership_evidence(old.edition), ownership_evidence(edition)
+                if identification.outcome == "work":
+                    if (
+                        previous.get("identification") != "work"
+                        or previous.get("import_id") != import_id
+                        or previous.get("work") != published_metadata
+                    ):
+                        continue
+                    # An unresolved import has no catalog snapshot or recording claims.
+                    old = None
+                else:
+                    old = EditionSnapshot.from_dict(previous["snapshot"])
+                observed, selected = (
+                    ownership_evidence(old.edition if old else edition),
+                    ownership_evidence(edition),
+                )
                 # Extra catalog aliases do not change an otherwise identical exact primary.
                 if replace(observed, external_ids=selected.external_ids) != selected:
                     continue
                 metadata = json.loads(texts[0])
                 if not isinstance(metadata, dict):
+                    continue
+                if old is None and any(
+                    metadata.get(key) != value for key, value in published_metadata.items()
+                ):
                     continue
                 asin = metadata.get("asin")
                 if asin is not None and not isinstance(asin, str):
@@ -295,14 +343,16 @@ def prepare(
                     tokens=frozenset(),
                     isbns=frozenset(),
                     asins=frozenset({asin}) if asin else frozenset(),
-                    external_ids=frozenset({(old.identity.provider, old.identity.provider_id)}),
+                    external_ids=frozenset({(old.identity.provider, old.identity.provider_id)})
+                    if old
+                    else frozenset(),
                 )
                 object.__setattr__(
                     entry,
                     "_edition_recording",
                     library_recording({"media": {"metadata": metadata}}),
                 )
-                if not _owned(selected, entry):
+                if old and not _owned(selected, entry):
                     continue
                 inventory = previous.get("files")
                 completed = (
@@ -427,6 +477,9 @@ def notify_scan() -> None:
                 f"{url}/api/libraries/{identity}/scan", timeout=15, allow_redirects=False
             )
             if 200 <= response.status_code < 300:
+                from shelfmark.core import library_index
+
+                library_index.invalidate("audiobookshelf")
                 logger.info(
                     "ABS scan request accepted; completion is asynchronous. Periodic scans recover missed imports."
                 )

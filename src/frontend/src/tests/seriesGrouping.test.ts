@@ -55,10 +55,10 @@ describe('evidenced work presentation', () => {
     }
     expect(JSON.stringify(seriesBooks)).toBe(before);
   });
-  it('does not infer work identity from matching titles or change Hardcover', () => {
+  it('groups browsing works without requiring catalog work IDs and leaves Hardcover alone', () => {
     expect(
       groupEditionBooks(seriesBooks.map((b) => ({ ...b, edition_work_id: undefined }))),
-    ).toHaveLength(6);
+    ).toHaveLength(4);
     expect(
       groupEditionBooks(seriesBooks.map((b) => ({ ...b, provider: 'hardcover' }))),
     ).toHaveLength(6);
@@ -68,6 +68,13 @@ describe('evidenced work presentation', () => {
     expect(sections[0].title).toBe('Harry Potter');
     expect(new Set(sections[0].books.map((b) => b.series_position))).toEqual(new Set([4, 6]));
     expect(sections[1].books.map((b) => b.id)).toEqual(['quiz', 'history']);
+    const sparse = Object.assign({}, seriesBooks[0], {
+      id: 'sparse',
+      series_name: undefined,
+      edition_series_name: undefined,
+      series_position: undefined,
+    });
+    expect(editionSections([...seriesBooks, sparse], 'Harry Potter')[0].books).toContain(sparse);
     expect(
       editionSections(seriesBooks, 'Harry Potter and the Goblet of Fire')[0].title,
     ).toBeUndefined();

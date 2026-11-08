@@ -545,7 +545,14 @@ export type EditionLocator = Readonly<{
   provider_id: string;
 }>;
 
+export const refreshEditionOwnership = (ids: string[]) =>
+  fetchJSON<{ books: Record<string, { library?: Book['library']; work_owned?: boolean }> }>(
+    `${API_BASE}/metadata/ownership`,
+    { method: 'POST', body: JSON.stringify({ ids }) },
+  );
+
 export type DownloadReleasePayload = {
+  work_context?: { provider_id: string; candidate_ids: string[] };
   edition_context?: EditionLocator;
   release_title?: string; // Advisory source title; never an edition identifier.
   source: string;

@@ -18,6 +18,7 @@ from shelfmark.core.edition_handoff import FrozenEditionContext
 from shelfmark.core.models import DownloadTask
 from shelfmark.download.outputs import edition as abs_output
 from shelfmark.download.outputs.abs_metadata import ExportPolicy, convert_snapshot
+from shelfmark.download.outputs.audio_identification import Identification
 from shelfmark.download.postprocess import policy, transfer
 from shelfmark.metadata_providers.editions.snapshot import EditionSnapshot
 
@@ -41,6 +42,13 @@ class OutputTests(unittest.TestCase):
         self.destination = self.root / "library"
         self.destination.mkdir()
         for context in (
+            # Transfer/collision fixtures use inert bytes. Local tag evidence is
+            # exercised separately by test_audio_identification and real ABS e2e.
+            patch.object(
+                abs_output,
+                "identify",
+                side_effect=lambda files, context: Identification("exact", context.snapshot, {}),
+            ),
             patch.object(
                 abs_output,
                 "convert_snapshot",

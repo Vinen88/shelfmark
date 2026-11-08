@@ -1,11 +1,10 @@
 """Pure edition naming helpers; never access files or Shelfmark settings."""
 
-import json
 import re
 from typing import TYPE_CHECKING
 
 from shelfmark.metadata_providers.editions.catalog_types import AggregatedEdition
-from shelfmark.metadata_providers.editions.search_ranking import literary_title, words
+from shelfmark.metadata_providers.editions.search_ranking import literary_title
 
 if TYPE_CHECKING:
     from shelfmark.metadata_providers.editions.models import AudiobookEdition
@@ -70,41 +69,11 @@ def work_presentation(edition: AudiobookEdition) -> tuple[str | None, str, str |
     """Conservative display grouping; child recording identity is untouched."""
     title = literary_title(edition.title)
     series = literary_title(edition.series_name or "") or None
+    numbered = re.search(r"\bBook\s+(\d+(?:\.\d+)?)\b", edition.title, re.IGNORECASE)
+    if numbered and (not series or edition.series_position is None):
+        title += f", Book {numbered[1]}"
     if isinstance(edition, AggregatedEdition) and "parent_work_id" in edition.provenance.conflicts:
         return None, title, series
     if edition.parent_work_id and edition.parent_work_id.startswith("audiobookdb:"):
         return edition.parent_work_id, title, series
-    if (
-        isinstance(edition, AggregatedEdition)
-        and series
-        and edition.series_position is not None
-        and edition.authors
-    ):
-        primary = edition.provenance.primary
-        entries = [
-            json.loads(v.value_json)
-            for v in edition.provenance.values
-            if v.source == primary and v.field == "source.series"
-        ]
-        # Require an explicit catalog series identifier and its stated position.
-        if any(
-            isinstance(rows, list)
-            and any(
-                isinstance(row, dict)
-                and row.get("asin")
-                and row.get("name") == edition.series_name
-                and str(row.get("position"))
-                in {str(edition.series_position), str(edition.series_position).removesuffix(".0")}
-                for row in rows
-            )
-            for rows in entries
-        ):
-            key = [
-                "series-position",
-                words(series),
-                sorted(words(a) for a in edition.authors),
-                edition.series_position,
-                words(title),
-            ]
-            return json.dumps(key, ensure_ascii=False, separators=(",", ":")), title, series
     return None, title, series

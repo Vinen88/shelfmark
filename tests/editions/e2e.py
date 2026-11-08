@@ -16,6 +16,10 @@ from threading import Event
 from unittest.mock import MagicMock, patch
 from urllib.request import Request, urlopen
 
+from mutagen import File
+from mutagen.id3 import TALB, TCOM, TLAN, TPUB, TXXX
+from mutagen.mp4 import MP4
+
 os.environ.update(
     {
         "CONFIG_DIR": "/tmp/config",
@@ -121,6 +125,7 @@ for number, narrator, language in (
     (3, "Conventional Narrator", "english"),
     (4, "Different Narrator", "english"),
     (5, "French Narrator", "french"),
+    (6, "Unidentified Fixture Narrator", "english"),
 ):
     row = dict(http.books[0])
     row.update(
@@ -134,9 +139,14 @@ for number, narrator, language in (
         series=[{"name": "The Lantern Cycle", "position": "2"}],
     )
     extra.append(row)
+    if number == 6:
+        row.update(
+            title="The Lantern Promise", series=[{"name": "The Lantern Cycle", "position": "3"}]
+        )
 http.books = (*http.books, *extra)
 for row in http.books:
     row["imageUrl"] = "https://m.media-amazon.com/images/synthetic.jpg"
+    row["lengthMinutes"] = 2 if "Part " in row["title"] or row["asin"] == "B0TEST0004" else 1
 
 
 def items():
@@ -154,10 +164,39 @@ def make_audio(label, extension, count):
                 audio.setnchannels(1)
                 audio.setsampwidth(2)
                 audio.setframerate(8000)
-                audio.writeframes((b"\x01\x00" if label == "partial" else b"\x00\x00") * 8000)
+                audio.writeframes((b"\x01\x00" if label == "partial" else b"\x00\x00") * 8000 * 60)
         else:
             shutil.copyfile(f"/media/fixtures/track.{extension}", path)
     return directory
+
+
+def tag_audio(directory, edition):
+    """Only generated test audio is tagged; production inspection is read-only."""
+    for path in directory.iterdir():
+        audio = File(path)
+        assert audio is not None
+        if audio.tags is None:
+            audio.add_tags()
+        if isinstance(audio, MP4):
+            audio["©alb"] = [edition.title]
+            audio["©wrt"] = list(edition.authors)
+            for key, values in (
+                ("ASIN", [edition.asin]),
+                ("NARRATOR", list(edition.narrators)),
+                ("PUBLISHER", [edition.publisher]),
+                ("LANGUAGE", [edition.language]),
+            ):
+                audio["----:com.apple.iTunes:" + key] = [
+                    value.encode() for value in values if value
+                ]
+        else:
+            audio.tags.add(TALB(encoding=3, text=[edition.title]))
+            audio.tags.add(TCOM(encoding=3, text=list(edition.authors)))
+            audio.tags.add(TLAN(encoding=3, text=[edition.language or "en"]))
+            audio.tags.add(TPUB(encoding=3, text=[edition.publisher or ""]))
+            audio.tags.add(TXXX(encoding=3, desc="ASIN", text=[edition.asin]))
+            audio.tags.add(TXXX(encoding=3, desc="NARRATOR", text=list(edition.narrators)))
+        audio.save()
 
 
 with (
@@ -195,7 +234,7 @@ with (
     with web.session_transaction() as session:
         session.update(user_id="fixture", db_user_id=2, is_admin=False)
 
-    def queue(book, label, source="prowlarr", extension="wav"):
+    def queue(book, label, source="prowlarr", extension="wav", work=False):
         if source == "prowlarr":
             indexer = MagicMock()
             indexer.indexer_timeout = 10
@@ -227,21 +266,29 @@ with (
             identity = releases[0].source_id
         else:
             identity = label
-        response = web.post(
-            "/api/releases/download",
-            json={
-                "source": source,
-                "source_id": identity,
-                "title": book.title,
-                "release_title": book.title,
-                "content_type": "audiobook",
-                "author": "Example Author",
-                "format": extension,
-                "edition_context": EditionLocator(
-                    ownership_evidence(provider.get_snapshot(book.provider_id).edition).identity
-                ).to_dict(),
-            },
-        )
+        payload = {
+            "source": source,
+            "source_id": identity,
+            "title": book.title,
+            "release_title": book.title,
+            "content_type": "audiobook",
+            "author": "Example Author",
+            "format": extension,
+            "edition_context": EditionLocator(
+                ownership_evidence(provider.get_snapshot(book.provider_id).edition).identity
+            ).to_dict(),
+        }
+        if work:
+            payload.pop("edition_context")
+            payload["work_context"] = {
+                "provider_id": book.provider_id,
+                "candidate_ids": [
+                    candidate.provider_id
+                    for candidate in books
+                    if candidate.series_position == book.series_position
+                ],
+            }
+        response = web.post("/api/releases/download", json=payload)
         assert response.status_code == 200, response.get_json()
         task = book_queue.get_task(identity)
         assert context_from_task(task).snapshot.identity.provider_id == book.provider_id
@@ -257,6 +304,7 @@ with (
     directories = {}
     for index, (book, label, source_name, extension, count) in enumerate(scenarios):
         source = make_audio(label, extension, count)
+        tag_audio(source, provider.get_snapshot(book.provider_id).edition)
         sources = sorted(source.iterdir())
         digests = [hashlib.sha256(path.read_bytes()).digest() for path in sources]
         task = queue(book, label, source_name, extension)
@@ -322,6 +370,7 @@ with (
     scan.assert_not_called()
     # A failed transfer must not complete or notify ABS; native retry resumes it.
     failed_source = make_audio("partial", "wav", 2)
+    tag_audio(failed_source, provider.get_snapshot(ga[0].provider_id).edition)
     failed = queue(ga[0], "partial")
     failed.original_download_path = str(failed_source)
     with (
@@ -349,6 +398,67 @@ with (
     )
     print(
         "PASS exact completed output, failed/partial transfer recovery and language-specific series",
+        flush=True,
+    )
+    # Generic Get book can associate a different returned recording after inspecting real MP3 tags.
+    requested, actual = selected["B0TEST0003"], selected["B0TEST0004"]
+    source = make_audio("generic-identified", "mp3", 2)
+    tag_audio(source, provider.get_snapshot(actual.provider_id).edition)
+    before = [hashlib.sha256(path.read_bytes()).digest() for path in sorted(source.iterdir())]
+    task = queue(requested, "generic-identified", "prowlarr", "mp3", work=True)
+    task.original_download_path = str(source)
+    result = process_folder_output(
+        source, task, Event(), lambda *args: None, preserve_source_on_failure=True
+    )
+    assert result and task.output_args["edition_identification"] == "exact"
+    assert json.loads((Path(result).parent / "metadata.json").read_text())["asin"] == "B0TEST0004"
+    assert [
+        hashlib.sha256(Path(path).read_bytes()).digest() for path in task.download_paths
+    ] == before
+    # An explicit request may not silently substitute that same recording.
+    task = queue(requested, "explicit-conflict", "prowlarr", "mp3")
+    task.original_download_path = str(source)
+    errors = []
+    assert (
+        process_folder_output(
+            source,
+            task,
+            Event(),
+            lambda state, message=None: errors.append((state, message)),
+            preserve_source_on_failure=True,
+        )
+        is None
+    )
+    assert errors[-1][0] == "error" and "Get book" in errors[-1][1]
+    assert all(path.is_file() for path in source.iterdir())
+    # Untagged M4B through native AudiobookBay: literary facts only, confirmed by real ABS.
+    book = selected["B0TEST0006"]
+    source = make_audio("generic-unknown", "m4b", 1)
+    original = next(source.iterdir())
+    before = hashlib.sha256(original.read_bytes()).digest()
+    task = queue(book, "generic-unknown", "audiobookbay", "m4b", work=True)
+    result = process_folder_output(
+        source, task, Event(), lambda *args: None, preserve_source_on_failure=True
+    )
+    assert result and task.output_args["edition_identification"] == "work"
+    assert hashlib.sha256(Path(result).read_bytes()).digest() == before
+    assert original.stat().st_ino != Path(result).stat().st_ino
+    metadata = json.loads((Path(result).parent / "metadata.json").read_text())
+    assert metadata["title"] == "The Lantern Promise"
+    assert not set(metadata) & {"asin", "isbn", "narrators", "publisher", "publishedYear"}
+    assert "snapshot" not in json.loads(
+        (Path(result).parent / ".shelfmark-edition.json").read_text()
+    )
+    for _attempt in range(150):
+        entries = [audiobookshelf._item_to_entry(item) for item in items()]
+        if work_in_entries(book, entries):
+            break
+        time.sleep(0.1)
+    else:
+        raise AssertionError("ABS did not confirm work-level import")
+    assert library_index.match_entries(book, entries) is None
+    print(
+        "PASS generic identified recording, explicit conflict, unknown-edition export and confirmed work-only ABS ownership",
         flush=True,
     )
 print(

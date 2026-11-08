@@ -171,12 +171,13 @@ class SeriesSearchTests(unittest.TestCase):
         self.assertEqual(len({r.record_id for r in edition.provenance.references}), 4)
         self.assertIsNone(edition.isbn_13)  # Generic SKU grouping does not attest Audible ISBNs.
 
-    def test_display_work_groups_require_explicit_evidence_keep_children(self) -> None:
+    def test_work_presentation_retains_real_ids_and_literary_fields_only(self) -> None:
         found = self.backend().search("Harry Potter")
         first, second = found[:2]
         self.assertNotEqual(first.provider_id, second.provider_id)
         self.assertEqual(work_presentation(first)[0], work_presentation(second)[0])
-        self.assertNotEqual(work_presentation(first)[0], work_presentation(found[2])[0])
+        self.assertIsNone(work_presentation(first)[0])
+        self.assertNotEqual(work_presentation(first)[1], work_presentation(found[2])[1])
         assert isinstance(first, AggregatedEdition)
         without = replace(
             first,

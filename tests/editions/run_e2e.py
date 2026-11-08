@@ -141,7 +141,7 @@ def main():
                 "-i",
                 "anullsrc=r=8000:cl=mono",
                 "-t",
-                "1",
+                "60",
                 *encoding,
                 f"/media/fixtures/track.{extension}",
             )

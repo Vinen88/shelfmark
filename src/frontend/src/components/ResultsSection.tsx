@@ -4,13 +4,17 @@ import { useSearchMode } from '../contexts/SearchModeContext';
 import { SORT_OPTIONS } from '../data/filterOptions';
 import { useMediaQuery } from '../hooks/useMediaQuery';
 import type { Book, ButtonStateInfo, SortOption } from '../types';
-import { editionSections, groupEditionBooks } from '../utils/editionPresentation';
+import {
+  editionSections,
+  groupEditionBooks,
+  workBook,
+  editionButtonState,
+} from '../utils/editionPresentation';
 import { Dropdown } from './Dropdown';
 import { MetadataAttribution } from './MetadataAttribution';
 import { CardView } from './resultsViews/CardView';
 import { CompactView } from './resultsViews/CompactView';
 import { ListView } from './resultsViews/ListView';
-import { isInLibrary, LibraryBadge } from './shared/LibraryBadge';
 
 // Grid layout classes by view mode
 const GRID_CLASSES = {
@@ -103,24 +107,46 @@ export const ResultsSection = ({
       : `grid gap-6 ${!isDesktop ? GRID_CLASSES.mobile : GRID_CLASSES[viewMode]}`;
   const actions = { onDetails, onDownload, onGetReleases, onShowToast };
   const renderBook = (book: Book, index: number) => {
+    const state = editionButtonState(book, getUniversalButtonState(book.id));
+    const childStates =
+      book.download_intent === 'work'
+        ? books
+            .filter((child) => book.edition_candidate_ids?.includes(child.provider_id || ''))
+            .map((child) => getUniversalButtonState(child.id))
+        : [];
+    const active = childStates.find((value) =>
+      ['queued', 'resolving', 'locating', 'downloading', 'error'].includes(value.state),
+    );
+    const parentState =
+      book.download_intent === 'work' && state.state === 'download' ? active || state : state;
+    const bookActions =
+      book.download_intent === 'work'
+        ? {
+            ...actions,
+            onDetails: async () => {
+              document.getElementById(book.id)?.setAttribute('open', '');
+            },
+          }
+        : actions;
     if (viewMode === 'list')
       return (
         <ListView
           key={book.id}
           books={[book]}
-          {...actions}
+          {...bookActions}
           getButtonState={getButtonState}
-          getUniversalButtonState={getUniversalButtonState}
-          showSeriesPosition={sortValue === 'series_order'}
+          getUniversalButtonState={(id) =>
+            id === book.id ? parentState : getUniversalButtonState(id)
+          }
+          showSeriesPosition={book.download_intent === 'work' || sortValue === 'series_order'}
         />
       );
     const props = {
       book,
-      ...actions,
-      buttonState:
-        searchMode === 'universal' ? getUniversalButtonState(book.id) : getButtonState(book.id),
+      ...bookActions,
+      buttonState: searchMode === 'universal' ? parentState : getButtonState(book.id),
       animationDelay: index * 50,
-      showSeriesPosition: sortValue === 'series_order',
+      showSeriesPosition: book.download_intent === 'work' || sortValue === 'series_order',
     };
     return isDesktop && viewMode === 'card' ? (
       <CardView key={book.id} {...props} />
@@ -128,39 +154,27 @@ export const ResultsSection = ({
       <CompactView key={book.id} {...props} showDetailsButton={!isDesktop} />
     );
   };
-  const renderGroup = (group: Book[]) =>
-    group.length === 1 && !group[0].work_owned ? (
-      renderBook(group[0], 0)
-    ) : (
-      <details
-        key={group[0].edition_work_id || group[0].id}
-        className="col-span-full min-w-0 rounded-xl border border-gray-300/50 p-3 dark:border-gray-600"
-        onToggle={(event) => {
-          if (!event.currentTarget.open) onViewChange?.();
-        }}
-      >
-        <summary className="cursor-pointer font-semibold break-words">
-          {group[0].series_position != null && (
-            <span className="mr-2 opacity-60">#{group[0].series_position}</span>
-          )}
-          {group[0].edition_work_title || group[0].title}
-          <LibraryBadge
-            library={
-              group.some((book) => book.work_owned || book.library?.audiobook === 'owned')
-                ? { audiobook: 'owned' }
-                : undefined
-            }
-            className="ml-2 inline-flex"
-          />
-          <span className="ml-2 text-sm font-normal opacity-70">
-            {group.length} catalog listings
-            {group.some((book) => isInLibrary(book.library)) && ' · Includes owned recordings'}
-          </span>
-          <span className="mt-1 block text-sm font-normal opacity-70">{group[0].author}</span>
-        </summary>
-        <div className={gridClasses + ' mt-4'}>{group.map(renderBook)}</div>
-      </details>
+  const renderGroup = (group: Book[]) => {
+    if (group[0].provider !== 'edition_metadata') return renderBook(group[0], 0);
+    const parent = workBook(group, books);
+    return (
+      <div key={parent.id} className="min-w-0 self-start [&>article]:h-auto">
+        {renderBook(parent, 0)}
+        <details
+          id={parent.id}
+          className="mt-2 rounded-xl border border-gray-300/50 p-3 dark:border-gray-600"
+          onToggle={(event) => {
+            if (!event.currentTarget.open) onViewChange?.();
+          }}
+        >
+          <summary className="cursor-pointer text-sm font-semibold">
+            View editions ({group.length})
+          </summary>
+          <div className="mt-3 grid min-w-0 grid-cols-1 gap-3">{group.map(renderBook)}</div>
+        </details>
+      </div>
     );
+  };
 
   if (!visible) return null;
 
@@ -314,8 +328,8 @@ export const ResultsSection = ({
                   <div>
                     <h2 className="text-xl font-semibold">{section.title}</h2>
                     <p className="text-sm opacity-70">
-                      Discovered books in series order ·{' '}
-                      {section.books.length + section.additional.length} catalog listings returned
+                      Discovered books in series order · {section.books.length} catalog editions
+                      returned
                     </p>
                   </div>
                   {onSearchSeries && (
@@ -330,27 +344,6 @@ export const ResultsSection = ({
                 </div>
               )}
               <div className={gridClasses}>{groupEditionBooks(section.books).map(renderGroup)}</div>
-              {section.additional.length > 0 && (
-                <details
-                  className="mt-4 min-w-0 rounded-xl border border-gray-300/50 p-3 dark:border-gray-600"
-                  onToggle={(event) => {
-                    if (!event.currentTarget.open) onViewChange?.();
-                  }}
-                >
-                  <summary className="cursor-pointer text-sm font-medium">
-                    Additional catalog matches ({section.additional.length})
-                    {section.additional.some((book) => isInLibrary(book.library)) &&
-                      ' · Includes owned recordings'}
-                  </summary>
-                  <p className="my-3 text-sm opacity-70">
-                    These listings have no supplied ASIN or recording ISBN. They may describe the
-                    recordings above or different recordings; that relationship is unverified.
-                  </p>
-                  <div className={gridClasses}>
-                    {groupEditionBooks(section.additional).map(renderGroup)}
-                  </div>
-                </details>
-              )}
             </div>
           ),
       )}

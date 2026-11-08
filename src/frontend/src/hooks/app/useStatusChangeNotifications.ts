@@ -10,6 +10,7 @@ interface UseStatusChangeNotificationsOptions {
   openDownloadsSidebar: () => void;
   bookToReleaseMap: Record<string, string[]>;
   markBookCompleted: (bookId: string) => void;
+  refreshOwnership?: () => void;
 }
 
 export const useStatusChangeNotifications = ({
@@ -19,8 +20,11 @@ export const useStatusChangeNotifications = ({
   openDownloadsSidebar,
   bookToReleaseMap,
   markBookCompleted,
+  refreshOwnership,
 }: UseStatusChangeNotificationsOptions): void => {
   const prevStatusRef = useRef<StatusData>({});
+  const ownershipTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
+  useEffect(() => () => ownershipTimers.current.forEach(clearTimeout), []);
   const handleStatusTransition = useEffectEvent(
     (prevStatus: StatusData, nextStatus: StatusData) => {
       const autoDownloadContentTypes = Array.isArray(config?.download_to_browser_content_types)
@@ -63,6 +67,13 @@ export const useStatusChangeNotifications = ({
         if (!prevComplete[bookId]) {
           const book = currComplete[bookId];
           showToast(`${book.title || 'Book'} completed`, 'success');
+          if (book.content_type === 'audiobook' && refreshOwnership) {
+            ownershipTimers.current.forEach(clearTimeout);
+            // Bounded refresh of visible results after asynchronous ABS ingestion.
+            ownershipTimers.current = [0, 2000, 10000, 30000].map((delay) =>
+              setTimeout(refreshOwnership, delay),
+            );
+          }
 
           if (book.download_path && canAutoDownloadContentType(book.content_type)) {
             const link = document.createElement('a');

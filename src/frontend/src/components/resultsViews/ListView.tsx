@@ -214,7 +214,9 @@ export const ListView = ({
                     {book.year && <span className="sm:hidden"> • {book.year}</span>}
                   </p>
                   <LibraryBadge
-                    edition={book.provider === 'edition_metadata'}
+                    edition={
+                      book.provider === 'edition_metadata' && book.download_intent !== 'work'
+                    }
                     library={book.library}
                     className="mt-0.5"
                   />
@@ -252,7 +254,7 @@ export const ListView = ({
 
                 {/* Year - Desktop only */}
                 <div className="hidden justify-center text-xs text-gray-700 sm:flex dark:text-gray-200">
-                  {book.year || '-'}
+                  {book.year || (book.download_intent === 'work' ? '' : '-')}
                 </div>
 
                 {/* Universal mode: Display fields as separate columns - Desktop only */}
@@ -350,7 +352,7 @@ export const ListView = ({
                       void handleDetails(book.id);
                     }}
                     disabled={isLoadingDetails}
-                    aria-label={`View details for ${book.title || 'this book'}`}
+                    aria-label={`View ${book.download_intent === 'work' ? 'editions' : 'details'} for ${book.title || 'this book'}`}
                   >
                     {isLoadingDetails ? (
                       <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent sm:h-5 sm:w-5" />

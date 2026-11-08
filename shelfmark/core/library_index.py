@@ -60,6 +60,15 @@ def _slot(provider_name: str) -> _CacheSlot:
         return _cache.setdefault(provider_name, _CacheSlot())
 
 
+def invalidate(provider_name: str) -> None:
+    """Expire a native index after import; a scan acknowledgement proves no ownership."""
+    with _lock:
+        slot = _cache.get(provider_name)
+        if slot is not None:
+            slot.fetched_at = float("-inf")
+            slot.failed_at = None
+
+
 def _store(provider_name: str, entries: list[LibraryEntry], fingerprint: object | None) -> None:
     slot = _slot(provider_name)
     with _lock:
